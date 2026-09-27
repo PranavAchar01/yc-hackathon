@@ -44,7 +44,6 @@ const EnvSchema = z.object({
 
   OTS_API_HOST: z.string().default("127.0.0.1"),
   OTS_API_PORT: z.coerce.number().int().positive().default(3977),
-  OTS_MOCK_URL: z.string().default("http://127.0.0.1:3977/mock/"),
 
   OTS_SKILLS_DIR: z.string().optional(),
   OTS_REQUESTER: z.string().default("Priya"),

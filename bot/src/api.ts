@@ -2,7 +2,6 @@ import { createServer, type Server } from "node:http";
 import type { CommandLibrary, CommandRecord } from "./library/types.ts";
 import { invocation } from "./library/types.ts";
 import { log } from "./log.ts";
-import { handleMock, type Outbox } from "./mock-site.ts";
 import type { CommandSearch } from "./search.ts";
 
 export interface HealthLine {
@@ -32,7 +31,6 @@ export function publicCommand(c: CommandRecord) {
 export interface ApiDeps {
   library: CommandLibrary;
   search: CommandSearch;
-  outbox: Outbox;
   health: () => Promise<HealthLine[]>;
 }
 
@@ -40,7 +38,6 @@ export interface ApiDeps {
  * Small local HTTP server:
  *   GET /api/commands?q=&limit=   read-only library for the website (CORS open, GET only)
  *   GET /api/health               one line per service, used by `pnpm stage`
- *   /mock/*                       the fake inbox, sheet and compose pages the browser agent can work in (smoke test)
  */
 export function createApiServer(deps: ApiDeps): Server {
   return createServer((req, res) => {
@@ -56,7 +53,6 @@ export function createApiServer(deps: ApiDeps): Server {
         res.end(JSON.stringify(body));
       };
       try {
-        if (await handleMock(req, res, url, deps.outbox)) return;
         if (req.method === "OPTIONS") return json(204, {});
         if (req.method !== "GET") return json(405, { error: "method_not_allowed" });
         if (url.pathname === "/api/health") {

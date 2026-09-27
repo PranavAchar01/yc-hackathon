@@ -120,7 +120,8 @@ executor with the same card and nothing on screen says so (only the log does).
   `bsk session stop <id>` (always stopped, success or failure). The procedure's steps and `memorable recall`
   go in as guidance; the finished run's actions are recorded back to Memorable. A `bsk screenshot` lands on
   the run card every 4 s (`files.uploadV2` + image block). Start URL comes from the command
-  (`commands.start_url`); null means the local smoke-test page `http://127.0.0.1:3977/mock/`.
+  (`commands.start_url`) and is required: demo runs only on real sites. A command with no start URL is refused
+  with a clear card (no silent scripted fallback for that case), and there are no local mock pages.
 - **qm**: `POST /v1/turns` on a local QM (`qm/src/api/routes/turns.ts`), body
   `{ surface, actor: { externalId }, conversation: { kind: "dm", threadRef }, text }`, signed like
   `qm/src/auth/source-auth-sign.ts` (`x-timestamp`, `x-signature: v0=HMAC_SHA256(secret, "v0:<ts>:<METHOD>\n<path>\n<body>")`).
@@ -147,8 +148,7 @@ Secrets come from Keychain (see above). Everything else has a default:
 | `OTS_DATABASE_URL` | `postgres://ots:ots@127.0.0.1:5544/ots` | library database (local dev credentials) |
 | `OTS_LIBRARY` | `postgres` | `memory` to run without Postgres |
 | `OTS_SEED` | `1` | seed 52 commands (`seed/commands.json`) into an empty library; the real-site ones (`standup`, `triage`, `ship`, `deploys`) are upserted by name on every start |
-| `OTS_API_PORT` / `OTS_API_HOST` | `3977` / `127.0.0.1` | `/api/commands?q=`, `/api/health`, `/mock/` |
-| `OTS_MOCK_URL` | `http://127.0.0.1:3977/mock/` | local smoke-test page |
+| `OTS_API_PORT` / `OTS_API_HOST` | `3977` / `127.0.0.1` | `/api/commands?q=`, `/api/health` |
 | `OTS_LLM` | picks by key, OpenAI first | `openai` or `anthropic` |
 | `OTS_OPENAI_MODEL` / `OTS_OPENAI_FAST_MODEL` | `gpt-5.5` / unset | OpenAI models (fast one only for the bsk loop) |
 | `OTS_ANTHROPIC_MODEL` | `claude-opus-5-5` | Anthropic model |

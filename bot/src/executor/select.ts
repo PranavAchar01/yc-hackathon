@@ -1,5 +1,12 @@
 import { log } from "../log.ts";
-import type { EventSink, Executor, ExecutorName, RunResult, RunTask } from "./types.ts";
+import {
+  type EventSink,
+  type Executor,
+  type ExecutorName,
+  RunRefused,
+  type RunResult,
+  type RunTask,
+} from "./types.ts";
 
 /** An executor that can say whether it is ready right now. */
 export interface CheckedExecutor extends Executor {
@@ -31,7 +38,7 @@ export class ResilientExecutor implements Executor {
     try {
       return await this.primary.run(task, onEvent, signal);
     } catch (err) {
-      if (signal?.aborted) throw err;
+      if (signal?.aborted || err instanceof RunRefused) throw err;
       log.error(
         `${this.primary.name} failed mid-run, finishing with scripted:`,
         err instanceof Error ? err.message : err,
