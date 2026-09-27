@@ -1,6 +1,7 @@
 import type { types } from "@slack/bolt";
 import { esc } from "./blocks.ts";
 import { type CommandRecord, invocation } from "./library/types.ts";
+import { teamCoverUrl, teamOf } from "./teams.ts";
 
 type KnownBlock = types.KnownBlock;
 type HomeView = types.HomeView;
@@ -14,10 +15,22 @@ export function runsLabel(n: number): string {
   return n === 1 ? "1 run" : `${n} runs`;
 }
 
-/** One command, two quiet lines: the command and its name, then what it does and how often it runs. No emoji. */
+/** Where App Home thumbnails come from: the public site (the same covers as the web library). */
+export const COVERS_BASE = process.env.OTS_LIVE_BASE ?? "https://over-the-shoulder-brown.vercel.app";
+
+/** The tile picture: the latest real run's poster, else the team's generated cover. */
+export function thumbnailUrl(c: CommandRecord, base = COVERS_BASE): string {
+  return c.posterUrl?.startsWith("https://") ? c.posterUrl : teamCoverUrl(base, teamOf(c));
+}
+
+/** One command, two quiet lines and a thumbnail: the command and its name, then what it does and how often it runs. */
 export function commandRow(c: CommandRecord): KnownBlock[] {
   return [
-    { type: "section", text: md(`*${esc(invocation(c))}*   ${esc(c.title)}`) },
+    {
+      type: "section",
+      text: md(`*${esc(invocation(c))}*   ${esc(c.title)}`),
+      accessory: { type: "image", image_url: thumbnailUrl(c), alt_text: c.title.slice(0, 200) || c.name },
+    },
     {
       type: "context",
       elements: [md(`${esc(c.description)}  ·  ${esc(c.authorName)}  ·  ${runsLabel(c.uses)}`)],

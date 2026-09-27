@@ -19,6 +19,8 @@ export interface CommandRecord {
   createdAt: Date;
   /** Where the computer-use agent starts (e.g. https://github.com). Required for a browser run; null cannot run there. */
   startUrl: string | null;
+  /** Poster frame of the latest real run (library video), when there is one. */
+  posterUrl?: string | null;
   /** "slash" once registered as a real /command via apps.manifest.update; "router" means use /do <name>. */
   registered: Registration;
 }

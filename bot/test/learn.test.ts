@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { learnWatchingCard } from "../src/blocks.ts";
+import { learnedCard, learnWatchingCard } from "../src/blocks.ts";
 import {
   cleanStartUrl,
   framePlan,
@@ -62,27 +62,27 @@ describe("/learn URL validation", () => {
 describe("frame sampling math", () => {
   it("takes one frame every 2 s for short videos", () => {
     expect(framePlan(30)).toEqual({ intervalS: 2, count: 15 });
-    expect(framePlan(80)).toEqual({ intervalS: 2, count: 40 });
+    expect(framePlan(32)).toEqual({ intervalS: 2, count: 16 });
     expect(framePlan(1)).toEqual({ intervalS: 2, count: 1 });
   });
 
-  it("spreads 40 frames evenly over long videos", () => {
+  it("spreads 16 frames evenly over longer videos", () => {
     const p = framePlan(600);
-    expect(p).toEqual({ intervalS: 15, count: LEARN_MAX_FRAMES });
+    expect(p).toEqual({ intervalS: 37.5, count: LEARN_MAX_FRAMES });
     expect(p.intervalS * p.count).toBeCloseTo(600);
-    expect(framePlan(82).count).toBe(40);
-    expect(framePlan(82).intervalS).toBeCloseTo(2.05);
+    expect(framePlan(120).count).toBe(16);
+    expect(framePlan(120).intervalS).toBeCloseTo(7.5);
   });
 
   it("falls back to the cap when the duration is unknown", () => {
-    expect(framePlan(Number.NaN)).toEqual({ intervalS: 2, count: 40 });
-    expect(framePlan(0)).toEqual({ intervalS: 2, count: 40 });
+    expect(framePlan(Number.NaN)).toEqual({ intervalS: 2, count: 16 });
+    expect(framePlan(0)).toEqual({ intervalS: 2, count: 16 });
   });
 
   it("maps frame index to its time in the video", () => {
     const p = framePlan(600);
-    expect(frameTime(p, 0)).toBe(8);
-    expect(frameTime(p, 39)).toBe(593);
+    expect(frameTime(p, 0)).toBe(19);
+    expect(frameTime(p, 15)).toBe(581);
   });
 });
 
@@ -165,25 +165,30 @@ describe("extraction parsing", () => {
   });
 });
 
-describe("Watching the tape card", () => {
-  it("shows source, phase, thumbnail strip and steps as they arrive", () => {
+describe("Watching the recording card", () => {
+  it("shows the verb line, a filmstrip of at most 8 frames and one tiny context line", () => {
     const card = learnWatchingCard({
       url: "https://www.loom.com/share/abc",
-      phase: "writing",
-      frames: 32,
-      transcript: true,
+      phase: "reading",
+      frames: 16,
       thumbFileIds: Array.from({ length: 10 }, (_, i) => `F${i}`),
-      steps: ["Open the issues page", "Add <labels>"],
     });
     const json = JSON.stringify(card.blocks);
-    expect(card.text).toBe("Watching the tape");
+    expect(card.text).toBe("Watching the recording");
+    expect(json).toContain("◐  *Watching the recording*");
     expect(json).toContain("loom.com");
-    expect(json).toContain("32 frames");
-    expect(json).toContain("with transcript");
-    expect(json).toContain("Add &lt;labels&gt;");
+    expect(json).toContain("16 frames");
     const strip = card.blocks.find((b) => b.type === "context" && JSON.stringify(b).includes("slack_file"));
     expect(strip && "elements" in strip ? strip.elements.length : 0).toBe(8);
     expect(json).not.toMatch(/[–—]/);
+  });
+
+  it("learned card: name, step count and one Publish button", () => {
+    const card = learnedCard({ name: "release", steps: 5, draftId: "d1", actionId: "open" });
+    const json = JSON.stringify(card.blocks);
+    expect(json).toContain("✓  *Learned /release  ·  5 steps*");
+    expect(json).toContain('"text":"Publish"');
+    expect(json).toContain('"value":"d1"');
   });
 
   it("carries the start URL into the Publish sheet", () => {

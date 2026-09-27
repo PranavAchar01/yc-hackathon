@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Run</title>
+<meta name="description" content="Watch an Over the Shoulder agent work in a real browser, live.">
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#0b0b0c;--ink:#f5f5f7;--ink2:#a1a1a6;--live:#ff3b30;--veil:rgba(0,0,0,.52)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+.stage{position:fixed;inset:0;display:grid;place-items:center}
+canvas{width:100%;height:100%;display:block;object-fit:contain;opacity:0;transition:opacity .4s ease}
+canvas.on{opacity:1}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:var(--bg);display:none}
+video.on{display:block}
+.wait{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:14px;color:var(--ink2);font-size:14px;letter-spacing:.01em;transition:opacity .4s ease}
+.wait.off{opacity:0;pointer-events:none}
+.ring{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.14);border-top-color:rgba(255,255,255,.7);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pill{position:absolute;left:14px;top:14px;display:flex;align-items:center;gap:7px;padding:5px 10px 5px 9px;border-radius:999px;background:var(--veil);backdrop-filter:blur(12px) saturate(160%);-webkit-backdrop-filter:blur(12px) saturate(160%);font-size:12px;font-weight:600;letter-spacing:.04em;opacity:0;transition:opacity .3s ease}
+.pill.on{opacity:1}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--live);box-shadow:0 0 0 0 rgba(255,59,48,.6);animation:pulse 1.6s ease-out infinite}
+.pill.done .dot{background:#34c759;animation:none}
+.pill.failed .dot{background:#8e8e93;animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,59,48,.55)}70%{box-shadow:0 0 0 7px rgba(255,59,48,0)}100%{box-shadow:0 0 0 0 rgba(255,59,48,0)}}
+.title{position:absolute;right:14px;top:14px;max-width:60%;padding:5px 11px;border-radius:999px;background:var(--veil);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);font-size:12px;font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;transition:opacity .3s ease}
+.title.on{opacity:1}
+.replay{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);padding:8px 16px;border-radius:999px;border:0;background:rgba(255,255,255,.92);color:#111;font:600 13px -apple-system,BlinkMacSystemFont,system-ui,sans-serif;cursor:pointer;display:none;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.replay.on{display:block}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <canvas id="c" aria-label="Live view of the agent's browser"></canvas>
+  <video id="v" playsinline muted controls></video>
+  <div class="wait" id="wait"><div class="ring"></div><div id="msg">Waiting for the agent</div></div>
+  <div class="pill" id="pill"><span class="dot"></span><span id="label">LIVE</span></div>
+  <div class="title" id="title"></div>
+  <button class="replay" id="replay" type="button">Replay</button>
+</div>
+<script>
+(() => {
+  const run = new URLSearchParams(location.search).get("run") || "";
+  const $ = (id) => document.getElementById(id);
+  const canvas = $("c"), ctx = canvas.getContext("2d"), video = $("v");
+  const wait = $("wait"), msg = $("msg"), pill = $("pill"), label = $("label"), title = $("title"), replay = $("replay");
+  if (!/^[A-Za-z0-9_-]{16,64}$/.test(run)) { msg.textContent = "No run to show"; $("wait").querySelector(".ring").remove(); return; }
+  const url = `/api/live/${encodeURIComponent(run)}?frame=1`;
+  let etag = "", state = "live", replayUrl = "", misses = 0, stopped = false;
+
+  function fit(bmp) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = Math.round(innerWidth * dpr), h = Math.round(innerHeight * dpr);
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    const s = Math.min(w / bmp.width, h / bmp.height);
+    const dw = bmp.width * s, dh = bmp.height * s;
+    ctx.fillStyle = "#0b0b0c"; ctx.fillRect(0, 0, w, h);
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(bmp, (w - dw) / 2, (h - dh) / 2, dw, dh);
+  }
+  let last = null;
+  addEventListener("resize", () => last && fit(last));
+
+  function showState() {
+    pill.classList.add("on");
+    pill.classList.toggle("done", state === "done");
+    pill.classList.toggle("failed", state === "failed");
+    label.textContent = state === "live" ? "LIVE" : state === "done" ? "DONE" : "STOPPED";
+    replay.classList.toggle("on", state !== "live" && !!replayUrl && !video.classList.contains("on"));
+  }
+
+  replay.onclick = () => {
+    video.src = replayUrl;
+    video.classList.add("on");
+    replay.classList.remove("on");
+    video.play().catch(() => {});
+  };
+  video.addEventListener("ended", () => { video.classList.remove("on"); showState(); });
+
+  async function tick() {
+    if (stopped) return;
+    try {
+      const r = await fetch(url, { cache: "no-store", headers: etag ? { "if-none-match": etag } : {} });
+      if (r.status === 404) {
+        misses++;
+        msg.textContent = misses > 40 ? "This run has ended or expired" : "Waiting for the agent";
+      } else if (r.ok || r.status === 304) {
+        misses = 0;
+        state = r.headers.get("x-state") || state;
+        replayUrl = r.headers.get("x-replay") || replayUrl;
+        const t = r.headers.get("x-title");
+        if (t) { title.textContent = decodeURIComponent(t); title.classList.add("on"); }
+        if (r.status === 200) {
+          etag = r.headers.get("etag") || "";
+          const bmp = await createImageBitmap(await r.blob());
+          last?.close?.();
+          last = bmp;
+          fit(bmp);
+          canvas.classList.add("on");
+          wait.classList.add("off");
+        }
+        showState();
+        // Once the run is over and its replay is known there is nothing left to poll for.
+        if (state !== "live" && replayUrl) stopped = true;
+      }
+    } catch { /* network blip: keep polling */ }
+    // About 8 polls a second while live; slow down once the run is over or the tab is hidden.
+    const delay = document.hidden ? 1000 : state === "live" ? 125 : 2000;
+    if (!stopped) setTimeout(tick, delay);
+  }
+  tick();
+})();
+</script>
+</body>
+</html>

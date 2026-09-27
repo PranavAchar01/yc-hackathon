@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { LlmProvider, ToolCall, ToolResult, ToolSpec } from "../llm.ts";
 import { log } from "../log.ts";
 import type { CliRunner, MemorableClient, TraceCall } from "../memorable.ts";
+import { cursorScript } from "./cursor.ts";
 import { type EventSink, type Executor, RunRefused, type RunResult, type RunTask } from "./types.ts";
 
 /**
@@ -194,6 +195,10 @@ export interface BskOptions {
   timeoutMs?: number;
   screenshotEveryMs?: number;
   effort?: "low" | "medium" | "high";
+  /** Draw a visible agent cursor in the agent's pages (default true). */
+  cursor?: boolean;
+  /** Cursor glide time; a click waits this long after hovering so the cursor lands first. */
+  glideMs?: number;
 }
 
 export class BskExecutor implements Executor {
@@ -203,6 +208,26 @@ export class BskExecutor implements Executor {
 
   private bsk(args: string[]) {
     return this.o.runner([this.o.bin, ...args]);
+  }
+
+  /** Idempotent: the script installs once per document. Best effort, never fails a run. */
+  private async installCursor(session: string): Promise<void> {
+    if (this.o.cursor === false) return;
+    await this.bsk([
+      "evaluate",
+      cursorScript({ glideMs: this.o.glideMs ?? 250 }),
+      "--session",
+      session,
+      "--timeout",
+      "5s",
+    ]).catch(() => undefined);
+  }
+
+  /** Move the cursor onto the target (CDP mouseMoved via bsk hover) and let it land before the click. */
+  private async glideTo(ref: string, session: string): Promise<void> {
+    if (this.o.cursor === false) return;
+    const r = await this.bsk(["hover", ref, "--session", session, "--timeout", "5s"]).catch(() => null);
+    if (r?.code === 0) await new Promise((res) => setTimeout(res, this.o.glideMs ?? 250));
   }
 
   /** Green when the daemon answers and at least one Chrome is connected, and there is an LLM key. */
@@ -266,6 +291,7 @@ export class BskExecutor implements Executor {
       await onEvent({ kind: "step", index: 0, state: "running" });
       const nav = await this.bsk(["navigate", startUrl, "--session", session]);
       if (nav.code !== 0) throw new Error(`bsk navigate failed: ${nav.stderr.trim().slice(0, 200)}`);
+      await this.installCursor(session);
       void shoot();
 
       const chat = llm.agent({
@@ -391,8 +417,13 @@ export class BskExecutor implements Executor {
           return { content: r.stderr.trim().slice(0, 500) || "snapshot failed", isError: true };
         return { content: r.stdout.slice(0, 20_000), snapshot: r.stdout };
       }
-      case "click":
-        return run(["click", ref ?? "", ...s], act("click", { target: ref }));
+      case "click": {
+        await this.glideTo(ref ?? "", session);
+        const out = await run(["click", ref ?? "", ...s], act("click", { target: ref }));
+        // A click can load a new document; the script is idempotent, so reinstalling is always safe.
+        await this.installCursor(session);
+        return out;
+      }
       case "fill": {
         if (ref && looksSecret(lastSnapshot, ref)) {
           return {
@@ -414,15 +445,17 @@ export class BskExecutor implements Executor {
         const url = String(input.url);
         if (allowedOrigin && originOf(url) !== allowedOrigin)
           return { content: `Refused: stay on ${allowedOrigin}.`, isError: true };
-        return run(["navigate", url, ...s], act("navigate", { url }));
+        const out = await run(["navigate", url, ...s], act("navigate", { url }));
+        await this.installCursor(session);
+        return out;
       }
       case "select":
         return run(
           ["select", ref ?? "", "--value", String(input.value), ...s],
           act("select", { target: ref }),
         );
-      case "wait_for_navigation":
-        return run([
+      case "wait_for_navigation": {
+        const out = await run([
           "wait-for-navigation",
           ...s,
           "--wait-until",
@@ -430,6 +463,9 @@ export class BskExecutor implements Executor {
           "--timeout",
           "15s",
         ]);
+        await this.installCursor(session);
+        return out;
+      }
       case "scroll_to":
         return run(["scroll-to", ref ?? "", ...s]);
       case "screenshot": {

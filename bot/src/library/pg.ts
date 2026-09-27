@@ -84,6 +84,7 @@ interface Row {
   created_at: Date;
   registered: Registration;
   start_url: string | null;
+  poster_url?: string | null;
 }
 
 function toRecord(r: Row): CommandRecord {
@@ -102,6 +103,7 @@ function toRecord(r: Row): CommandRecord {
     createdAt: r.created_at,
     registered: r.registered,
     startUrl: r.start_url,
+    posterUrl: r.poster_url ?? null,
   };
 }
 

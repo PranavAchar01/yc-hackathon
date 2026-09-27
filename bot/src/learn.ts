@@ -11,19 +11,33 @@ import { RESERVED } from "./registrar.ts";
 
 /**
  * /learn <url>: learn a command from a screen recording someone already made (YouTube, Loom, a direct .mp4).
- * yt-dlp downloads it, ffmpeg samples about one frame every 2 s (at most 40), captions become a transcript,
- * and the vision model writes title, name, description, 4 to 10 steps and the real site it starts on.
+ * yt-dlp downloads the video stream (720p at most) while the captions download in parallel, ffmpeg samples
+ * about 16 frames spread over the video, and the vision model writes title, name, description, 4 to 10 steps
+ * and the real site it starts on.
  * The result opens the same Publish sheet /teach uses.
  */
 
 export const LEARN_MAX_BYTES = 500 * 1024 * 1024;
 export const LEARN_FRAME_EVERY_S = 2;
-export const LEARN_MAX_FRAMES = 40;
+export const LEARN_MAX_FRAMES = 16;
 export const LEARN_MAX_STEPS = 10;
 /** Fewer usable steps than this means the video did not show a task. The prompt asks for 4 to 10. */
 const MIN_USABLE_STEPS = 2;
 const TRANSCRIPT_MAX_CHARS = 8_000;
 const FRAME_WIDTH = 1280;
+const MAX_HEIGHT = 720;
+/**
+ * YouTube now needs a JS runtime for its player (yt-dlp 2026.x warns and 403s without one; Node is always here),
+ * and its default web client gets 403 on the media URLs from this machine. The mweb and tv_simply clients
+ * download fine (checked 2026-09-25). Harmless for other hosts.
+ */
+export const YTDLP_BASE_ARGS = [
+  "--js-runtimes",
+  "node",
+  "--extractor-args",
+  "youtube:player_client=mweb,tv_simply",
+  "--no-playlist",
+];
 
 // ---------------------------------------------------------------- URL validation
 
@@ -83,7 +97,7 @@ export interface FramePlan {
   count: number;
 }
 
-/** About one frame every 2 s; long videos spread 40 frames evenly instead. */
+/** About one frame every 2 s; longer videos spread 16 frames evenly instead. */
 export function framePlan(
   durationS: number,
   everyS = LEARN_FRAME_EVERY_S,
@@ -221,8 +235,7 @@ export class VideoLearner {
     const dir = await mkdtemp(join(tmpdir(), "ots-learn-"));
     try {
       await onProgress({ phase: "downloading" });
-      const video = await this.download(url, dir);
-      const transcript = await this.captions(url, dir);
+      const [video, transcript] = await Promise.all([this.download(url, dir), this.captions(url, dir)]);
 
       await onProgress({ phase: "sampling" });
       const plan = framePlan(await this.duration(video));
@@ -242,14 +255,13 @@ export class VideoLearner {
   private async download(url: URL, dir: string): Promise<string> {
     const res = await this.runner([
       this.bins.ytdlp,
-      "--no-playlist",
+      ...YTDLP_BASE_ARGS,
       "--no-progress",
       "--max-filesize",
       "500M",
+      // Frames only: the video stream alone (no audio, no merge) is the fastest download.
       "-f",
-      "b[ext=mp4][height<=1080]/bv*[height<=1080]+ba/b",
-      "--merge-output-format",
-      "mp4",
+      `bv*[height<=${MAX_HEIGHT}]/b[height<=${MAX_HEIGHT}]/bv*/b`,
       "-o",
       join(dir, "video.%(ext)s"),
       "--print",
@@ -276,7 +288,7 @@ export class VideoLearner {
     if (isDirectVideo(url)) return "";
     await this.runner([
       this.bins.ytdlp,
-      "--no-playlist",
+      ...YTDLP_BASE_ARGS,
       "--skip-download",
       "--write-subs",
       "--write-auto-subs",
@@ -353,7 +365,7 @@ export class VideoLearner {
       system: LEARN_SYSTEM_PROMPT,
       schemaName: "learned_command",
       schema: LearnSchema,
-      effort: "high",
+      effort: "medium",
       content,
     });
     return parseLearned(raw, url);

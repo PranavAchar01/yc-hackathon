@@ -18,6 +18,7 @@ import { MemoryLibrary } from "./library/memory.ts";
 import { PgLibrary } from "./library/pg.ts";
 import { seedIfEmpty, syncRealSiteCommands } from "./library/seed.ts";
 import type { CommandLibrary } from "./library/types.ts";
+import { LiveRelay } from "./live.ts";
 import { AnthropicProvider, chooseProvider, type LlmProvider, OpenAIProvider } from "./llm.ts";
 import { log } from "./log.ts";
 import { defaultRunner, MemorableClient } from "./memorable.ts";
@@ -144,6 +145,7 @@ function primaryExecutor(): CheckedExecutor | null {
         ? (config.OTS_BSK_WINDOW.split("x").map(Number) as [number, number])
         : undefined,
       effort: config.BSK_EFFORT,
+      screenshotEveryMs: config.OTS_LIVE_SECRET ? config.OTS_LIVE_FRAME_MS : 1_200,
     });
   if (config.OTS_EXECUTOR === "qm") return new QmExecutor(config.OTS_QM_URL, config.OTS_QM_SIGNING_SECRET);
   return null;
@@ -154,9 +156,14 @@ const executor = new ResilientExecutor(primary, scripted, () => config.OTS_FORCE
 
 const extractor = llm ? new LlmStepExtractor(llm) : null;
 const drafter = llm ? new LlmDrafter(llm) : null;
+// /learn reads ~16 frames; the fast model is quick and good enough for it (OTS_LEARN_MODEL overrides).
+const learnLlm =
+  choice.provider === "openai" && config.OPENAI_API_KEY
+    ? new OpenAIProvider(config.OPENAI_API_KEY, config.OTS_LEARN_MODEL ?? config.OTS_OPENAI_FAST_MODEL)
+    : llm;
 // Downloads can take a while; give yt-dlp and ffmpeg 15 minutes.
-const learner = llm
-  ? new VideoLearner(llm, defaultRunner(process.env, 15 * 60_000), {
+const learner = learnLlm
+  ? new VideoLearner(learnLlm, defaultRunner(process.env, 15 * 60_000), {
       ytdlp: config.YTDLP_BIN,
       ffmpeg: config.FFMPEG_BIN,
       ffprobe: config.FFPROBE_BIN,
@@ -179,23 +186,34 @@ log.info(
 );
 
 const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-async function publishVideo(command: string, framesDir: string): Promise<void> {
-  if (!blobToken) return;
+/** Replay mp4 for the thread; with a Blob token also the command's library video. */
+async function publishVideo(command: string, framesDir: string) {
   try {
     const built = await buildVideo(framesDir, runner);
-    if (!built) return;
+    if (!built) return null;
+    if (!blobToken) return { mp4: built.mp4 };
     const up = await uploadVideo(built, command, blobToken);
     await library.setVideo(command, up.videoUrl, up.posterUrl);
     log.info(`video: /${command} ${built.frames} frames -> ${up.videoUrl}`);
+    return { mp4: built.mp4, videoUrl: up.videoUrl };
   } catch (err) {
     log.warn(`video: /${command} failed: ${err instanceof Error ? err.message : err}`);
+    return null;
   }
 }
+
+const live = config.OTS_LIVE_SECRET
+  ? new LiveRelay(config.OTS_LIVE_BASE, config.OTS_LIVE_SECRET, runner)
+  : null;
+log.info(
+  live ? `Live view: video via ${config.OTS_LIVE_BASE}/live` : "Live view: Slack images (no OTS_LIVE_SECRET)",
+);
 
 const { app, state } = createApp({
   config,
   sender,
   publishVideo,
+  live,
   executor,
   extractor,
   drafter,

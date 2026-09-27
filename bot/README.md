@@ -79,10 +79,10 @@ Checks: `pnpm typecheck`, `pnpm lint` (Biome), `pnpm test` (Vitest; the Postgres
 | Command | What it does |
 | --- | --- |
 | `/teach [name]` | "Watching over your shoulder" card with Stop. Captures the Mac screen every 1.5 s (`screencapture -x`). On Stop, the LLM (vision + structured output, zod-validated) writes the steps and the Publish sheet opens: name, one line, icon, steps, who can use it. |
-| `/learn <video link>` | Learns a command from a screen recording someone already made (YouTube, Loom or a direct .mp4; public http(s) only, 500 MB max). yt-dlp downloads it, ffmpeg samples about one frame every 2 s (40 max), captions become a transcript, and the LLM writes title, name, 4 to 10 steps and the real start URL. The card says "Watching the tape" with a thumbnail strip and the steps as they land, then the same Publish sheet as `/teach` opens. Needs `yt-dlp` and `ffmpeg` (`brew install yt-dlp ffmpeg`). |
+| `/learn <video link>` | Learns a command from a screen recording someone already made (YouTube, Loom or a direct .mp4; public http(s) only, 500 MB max). yt-dlp downloads the video stream (720p max) while the captions download in parallel, ffmpeg samples 16 frames, and the fast model (`OTS_LEARN_MODEL`, default `gpt-5.4-mini`) writes title, name, 4 to 10 steps and the real start URL. The card is `◐ Watching the recording` with a filmstrip, then `✓ Learned /release · 7 steps` and one Publish button (the `/teach` sheet). A 2 min YouTube tutorial takes about 12 s end to end. Test it without Slack: `source scripts/secrets.sh && tsx scripts/learn-offline.ts <url> [model]`. Needs `yt-dlp` (2026.x) and `ffmpeg`; YouTube needs Node as yt-dlp's JS runtime and the `mweb`/`tv_simply` clients, which the bot passes. |
 | `/new [sentence]` | One-sentence modal; the LLM drafts name and steps into the same Publish sheet. |
 | Message shortcut **Save as command** | Turns a finished run message into a command via the same sheet. |
-| `/gtm`, `/ship`, any published command | Posts the run card and ticks steps live. |
+| `/gtm`, `/ship`, any published command | Posts the run card: `◐ Triaging issues`, a large live view, `Step 3 of 6 · 0:42`. Done: `✓ Done · 1:26`, at most 2 result lines and an "Open in GitHub" link button (the rest of a long result goes in the thread). Failed: `Stopped · <reason>`. The run's replay (a ~15 s mp4) is posted in the thread as "Replay". |
 | `/standup` | Reads the last 24 h of GitHub activity and posts a 4 to 6 line standup. Read only. |
 | `/triage` | Labels each unlabeled open issue on over-the-shoulder (bug/feature/perf, P1/P2, needs-repro). Never closes or assigns. |
 | `/ship` | Merges the newest green PR (merge commit) and publishes the next GitHub release. |
@@ -117,10 +117,20 @@ executor with the same card and nothing on screen says so (only the log does).
 
 - **bsk** (`src/executor/bsk.ts`): a tool-use loop on the configured LLM whose tools wrap the `bsk` CLI
   (0.3.1): `snapshot`, `click`, `fill`, `press`, `navigate`, `select`, `wait-for-navigation`, `screenshot`,
-  `scroll-to`, plus `step_done`, `needs_human`, `finish`. Lifecycle is `bsk session start --json` /
+  `scroll-to`, plus `step_done`, `needs_human`, `finish`. After every navigate, wait and click the executor injects a
+  visible agent cursor (`src/executor/cursor.ts`, via `bsk evaluate`; installs once per page, pointer-events none,
+  changes no page text). bsk clicks with CDP `Input.dispatchMouseEvent` (a `mouseMoved` then press and release), so
+  the cursor follows real mouse events; before each click the executor also `bsk hover`s the target and waits 250 ms
+  so the cursor lands first, and on `fill` (CDP `insertText`, no mouse events) it glides to the focused field. Lifecycle is `bsk session start --json` /
   `bsk session stop <id>` (always stopped, success or failure). The procedure's steps and `memorable recall`
-  go in as guidance; the finished run's actions are recorded back to Memorable. A `bsk screenshot` lands on
-  the run card every 4 s (`files.uploadV2` + image block). Start URL comes from the command
+  go in as guidance; the finished run's actions are recorded back to Memorable. Live view, two ways:
+  *video* (when `OTS_LIVE_SECRET` is set): screenshots every 200 ms go as JPEG to the site relay
+  (`site/api/live/[run].js`, Postgres, latest frame only, forgotten after 30 min, bearer secret) and the card
+  carries a Block Kit video block whose `video_url` is the player `https://over-the-shoulder-brown.vercel.app/live?run=<id>`
+  (needs `links.embed:write` and that unfurl domain on the app); *image* (fallback, or when Slack rejects the video
+  block): a private `files.uploadV2` (no `channel_id`, so the file is never shared; the bot owns it, which is what an
+  image block's `slack_file` needs) every 1.2 s. Card updates are coalesced and spaced 1.2 s apart (chat.update is
+  Tier 3), pause for `Retry-After` on a 429, and resend without the media on `invalid_blocks`. Start URL comes from the command
   (`commands.start_url`) and is required: demo runs only on real sites. A command with no start URL is refused
   with a clear card (no silent scripted fallback for that case), and there are no local mock pages.
 - **qm**: `POST /v1/turns` on a local QM (`qm/src/api/routes/turns.ts`), body
@@ -159,9 +169,21 @@ Secrets come from Keychain (see above). Everything else has a default:
 | `GBRAIN_BIN` / `OTS_GBRAIN` | `~/.bun/bin/gbrain` / `1` | GBrain CLI |
 | `YTDLP_BIN` / `FFMPEG_BIN` / `FFPROBE_BIN` | `yt-dlp` / `ffmpeg` / `ffprobe` | `/learn` tools (on PATH) |
 | `OTS_REQUESTER` | `Priya` | name in "12 emails sent. Priya, done." |
+| `OTS_LIVE_SECRET` | unset | Keychain; enables the live video relay (same value as the site's env var) |
+| `OTS_LIVE_BASE` | `https://over-the-shoulder-brown.vercel.app` | site with `/live` and `/api/live/<run>`; also App Home covers |
+| `OTS_LIVE_FRAME_MS` | `200` | screenshot cadence with the relay (1200 ms without it) |
+| `OTS_LEARN_MODEL` | fast model | `/learn` extraction model |
 
 ## Website API
 
 `GET http://127.0.0.1:3977/api/commands?q=send%20launch%20emails&limit=20` returns
 `{ query, commands: [{ name, invoke, title, description, emoji, steps, author, uses, lastUsed, createdAt }] }`,
 "everyone" commands only, CORS open, GET only.
+
+## The "BrowserSkill started debugging this browser" bar
+
+Chrome shows this infobar whenever an extension uses `chrome.debugger`, which is how bsk drives the page. No flag or
+API lets an extension hide it, so we don't try. It is outside the page: `bsk screenshot` (CDP page capture) never
+contains it, so the live view, the thread Replay and the library videos are clean. Only window or screen
+recordings see it; `film/tools/prep-footage.sh` already crops below it, and `film/tools/prep2.sh` takes
+`AGENT_TOP_CROP=<px>` to cut it (and the toolbar) off the agent view.

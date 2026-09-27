@@ -179,6 +179,10 @@ describe("BskExecutor", () => {
     expect(res).toMatchObject({ executedBy: "bsk", summary: "Merged the PR.", drafts: [] });
     expect(calls).toContainEqual(["bsk", "navigate", "https://github.com/pulls", "--session", "s-42"]);
     expect(calls).toContainEqual(["bsk", "click", "@e7", "--session", "s-42"]);
+    // The visible cursor: installed after navigation, and it glides onto the target before the click.
+    const i = calls.findIndex((c) => c[1] === "click");
+    expect(calls[i - 1]?.slice(0, 3)).toEqual(["bsk", "hover", "@e7"]);
+    expect(calls.some((c) => c[1] === "evaluate" && String(c[2]).includes("__otsAgentCursor"))).toBe(true);
     expect(calls.at(-1)).toEqual(["bsk", "session", "stop", "s-42"]);
     const steps = events.filter((e) => e.kind === "step");
     expect(steps).toEqual([

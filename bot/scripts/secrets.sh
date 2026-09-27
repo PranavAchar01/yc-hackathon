@@ -29,4 +29,6 @@ ots_secret OTS_TEST_INBOX
 ots_secret OTS_DATABASE_URL
 # Optional: Vercel Blob token for run videos in the library
 ots_secret BLOB_READ_WRITE_TOKEN
+# Optional: shared secret for the live video relay on the site (same value as the site's OTS_LIVE_SECRET)
+ots_secret OTS_LIVE_SECRET
 unset -f ots_secret

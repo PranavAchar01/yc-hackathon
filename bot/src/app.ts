@@ -16,19 +16,23 @@ import {
   type Card,
   firstName,
   LEARN_THUMBS,
+  learnedCard,
   learnWatchingCard,
   notFoundCard,
   procedureBlocks,
   type RunView,
+  resultLines,
   reviewAllBlocks,
   runCard,
   sentLine,
   sentThreadReply,
+  slackSummary,
   teachFailedCard,
   teachLearnedCard,
   teachLearningCard,
   teachRecordingCard,
   teachReviewCard,
+  verbTitle,
 } from "./blocks.ts";
 import { ScreenRecorder } from "./capture.ts";
 import type { Config } from "./config.ts";
@@ -40,6 +44,7 @@ import type { GmailSender } from "./gmail-send.ts";
 import { commandsMessage, HOME_SEARCH, homeView, publishedMessage } from "./home.ts";
 import { parseVideoUrl, type VideoLearner } from "./learn.ts";
 import { type CommandLibrary, type CommandRecord, canSee, invocation } from "./library/types.ts";
+import { FramePump, type LiveRelay, newLiveRunId } from "./live.ts";
 import { log } from "./log.ts";
 import {
   CALLBACKS,
@@ -72,44 +77,124 @@ export interface Deps {
   sender?: GmailSender;
   /** /learn: video link to command. Null when no LLM key is configured. */
   learner?: VideoLearner | null;
-  /** Turn a run's screenshots into the command's library video (background, best effort). */
-  publishVideo?: (command: string, framesDir: string) => Promise<void>;
+  /**
+   * Turn a run's screenshots into its replay (a ~15 s mp4) and, when Blob is configured, the command's library
+   * video. Resolves with the local mp4 (for the "Replay" thread reply) and its public URL. Best effort.
+   */
+  publishVideo?: (command: string, framesDir: string) => Promise<PublishedVideo | null>;
+  /** Live video relay on the site. Absent: the card shows the screenshot image instead. */
+  live?: LiveRelay | null;
 }
+
+export interface PublishedVideo {
+  mp4: string;
+  videoUrl?: string;
+}
+
+/** Live view as a Slack image: one upload at a time, every 1.2 s, slower after a rate limit. */
+export const LIVE_IMAGE_EVERY_MS = 1_200;
+const LIVE_IMAGE_MAX_MS = 8_000;
 
 /** Commands this app handles itself. Everything else that reaches us is a published command. */
 export const FIXED_COMMANDS = ["teach", "new", "do", "ots", "commands", "learn"] as const;
 export const DYNAMIC_COMMAND = new RegExp(`^/(?!(?:${FIXED_COMMANDS.join("|")})$)[a-z0-9][a-z0-9_-]*$`);
 const OPEN_SHEET = "ots_open_sheet";
 
-/** Serialises chat.update calls for one message so ticks never land out of order. */
-class LiveCard {
-  private chain: Promise<void> = Promise.resolve();
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** chat.update is Tier 3 (about 50 a minute per workspace): keep one card at or under one update per 1.2 s. */
+export const CARD_MIN_GAP_MS = 1_200;
+
+const isMedia = (b: Card["blocks"][number]) =>
+  b.type === "image" ||
+  b.type === "video" ||
+  (b.type === "context" && b.elements.some((e) => e.type === "image"));
+
+/** Slack's rate-limit error from @slack/web-api, with the Retry-After seconds when it carries them. */
+export function retryAfterMs(err: unknown): number | null {
+  const e = err as { code?: string; retryAfter?: number; data?: { error?: string } };
+  if (e?.code === "slack_webapi_rate_limited_error" || e?.data?.error === "ratelimited")
+    return Math.max(1, e.retryAfter ?? 5) * 1_000;
+  return null;
+}
+
+/**
+ * One live message. Updates are coalesced (only the newest card is ever sent), spaced at least
+ * CARD_MIN_GAP_MS apart, and paused for Retry-After on a 429. If Slack rejects the media (a just-uploaded
+ * image that is still processing, or a video block the app is not allowed to post), the card goes out without
+ * it and `onMediaRejected` hears why, so the caller can fall back.
+ */
+export class LiveCard {
+  private pending: Card | null = null;
+  private waiters: Array<() => void> = [];
+  private running = false;
+  private nextAt = 0;
+  onMediaRejected?: (reason: string, hadVideo: boolean) => void;
 
   constructor(
     private readonly client: WebClient,
     readonly channel: string,
     readonly ts: string,
+    private readonly minGapMs = CARD_MIN_GAP_MS,
   ) {}
 
   update(card: Card): Promise<void> {
-    this.chain = this.chain
-      .then(() => this.send(card.blocks, card.text))
-      .catch(async (err: unknown) => {
-        // A just-uploaded screenshot is not usable until Slack finishes processing it, and Slack then rejects
-        // the whole card (invalid_blocks). The step ticks matter more: resend without the image; the next
-        // update shows it once it is ready.
-        const withoutImage = card.blocks.filter(
-          (b) => b.type !== "image" && !(b.type === "context" && b.elements.some((e) => e.type === "image")),
+    this.pending = card;
+    const done = new Promise<void>((r) => this.waiters.push(r));
+    if (!this.running) {
+      this.running = true;
+      void this.drain();
+    }
+    return done;
+  }
+
+  private async drain(): Promise<void> {
+    while (this.pending) {
+      const wait = this.nextAt - Date.now();
+      if (wait > 0) await sleep(wait);
+      const card = this.pending;
+      const waiters = this.waiters;
+      this.pending = null;
+      this.waiters = [];
+      if (!card) break;
+      const requeue = await this.sendSafely(card);
+      if (requeue && !this.pending) {
+        this.pending = card;
+        this.waiters.push(...waiters);
+        continue;
+      }
+      for (const w of waiters) w();
+    }
+    // No await between the loop check and this line, so an update() can never be stranded.
+    this.running = false;
+  }
+
+  /** Returns true when the card should be retried after a rate-limit pause. */
+  private async sendSafely(card: Card): Promise<boolean> {
+    this.nextAt = Date.now() + this.minGapMs;
+    try {
+      await this.send(card.blocks, card.text);
+      return false;
+    } catch (err: unknown) {
+      const retry = retryAfterMs(err);
+      if (retry !== null) {
+        this.nextAt = Date.now() + retry;
+        log.warn(`chat.update rate limited; pausing ${Math.round(retry / 1000)} s`);
+        return true;
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      const withoutMedia = card.blocks.filter((b) => !isMedia(b));
+      if (withoutMedia.length !== card.blocks.length && /invalid_blocks|invalid_arguments|embed/i.test(msg)) {
+        const hadVideo = card.blocks.some((b) => b.type === "video");
+        this.onMediaRejected?.(msg, hadVideo);
+        await this.send(withoutMedia, card.text).catch((e: unknown) =>
+          log.warn("chat.update failed", e instanceof Error ? e.message : e),
         );
-        if (withoutImage.length !== card.blocks.length && /invalid_blocks/.test(String(err))) {
-          await this.send(withoutImage, card.text).catch((e: unknown) =>
-            log.warn("chat.update failed", e instanceof Error ? e.message : e),
-          );
-          return;
-        }
-        log.warn("chat.update failed", err instanceof Error ? err.message : err);
-      });
-    return this.chain;
+        return false;
+      }
+      log.warn("chat.update failed", msg);
+      return false;
+    }
   }
 
   private async send(blocks: Card["blocks"], text: string): Promise<void> {
@@ -371,49 +456,41 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
       return;
     }
     const url = check.url.toString();
+    const t0 = Date.now();
     const state = {
       url,
       phase: "downloading" as Parameters<typeof learnWatchingCard>[0]["phase"],
       frames: 0,
-      transcript: false,
       thumbFileIds: [] as string[],
-      steps: [] as string[],
     };
     const card = await postCard(client, command.channel_id, learnWatchingCard(state), respond);
     if (!card) return;
     const show = () => card.update(learnWatchingCard(state));
     let dir: string | undefined;
     try {
-      const out = await deps.learner.learn(check.url, async (p) => {
+      const out = await deps.learner.learn(check.url, (p) => {
         if (p.phase === "done") return;
         state.phase = p.phase;
         if (p.frames) state.frames = p.frames.length;
-        if (p.transcript) state.transcript = true;
-        await show();
+        void show();
         if (p.phase === "reading" && p.frames) {
-          // Thumbnail strip: a few evenly spaced frames, added one by one as Slack accepts them.
-          for (const f of subsample(p.frames, LEARN_THUMBS)) {
-            const up = await client.files
-              .uploadV2({ file: await readFile(f), filename: basename(f), title: "Frame" })
-              .catch(() => null);
-            const id = up ? firstUploadedFileId(up) : undefined;
-            if (id) {
-              state.thumbFileIds.push(id);
-              await show();
-            }
-          }
-          state.phase = "writing";
-          await show();
+          // Filmstrip: uploaded in parallel while the model reads, never in its way.
+          const picks = subsample(p.frames, LEARN_THUMBS);
+          void Promise.all(
+            picks.map((f) =>
+              readFile(f)
+                .then((file) => client.files.uploadV2({ file, filename: basename(f), title: "Frame" }))
+                .then(firstUploadedFileId)
+                .catch(() => undefined),
+            ),
+          ).then((ids) => {
+            state.thumbFileIds = ids.filter((id): id is string => !!id);
+            void show();
+          });
         }
       });
       dir = out.dir;
       const x = out.learned;
-      // Steps land one at a time, calmly.
-      for (const s of x.steps) {
-        state.steps.push(s);
-        await show();
-        await new Promise((r) => setTimeout(r, 350));
-      }
       const draft: Draft = {
         name: x.name,
         title: x.title,
@@ -431,16 +508,10 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
       const draftId = randomUUID();
       pendingDrafts.set(draftId, { draft, meta });
       cards.set(card.ts, card);
-      await card.update(
-        teachReviewCard({
-          title: x.title,
-          steps: x.steps.length,
-          draftId,
-          actionId: OPEN_SHEET,
-          source: "the video",
-        }),
+      await card.update(learnedCard({ name: x.name, steps: x.steps.length, draftId, actionId: OPEN_SHEET }));
+      log.info(
+        `learn: ${x.name} from ${url} (${x.steps.length} steps, start ${x.startUrl ?? "none"}) in ${Math.round((Date.now() - t0) / 1000)} s`,
       );
-      log.info(`learn: ${x.name} from ${url} (${x.steps.length} steps, start ${x.startUrl ?? "none"})`);
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       log.error(`learn from ${url} failed:`, reason);
@@ -604,6 +675,7 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
       phase: "running",
       drafts: [],
       invoke: record ? invocation(record) : `/do ${procedure.name}`,
+      ...(record?.startUrl ? { startUrl: record.startUrl } : {}),
     };
     const card = await postCard(client, command.channel_id, runCard(view), respond);
     if (!card) return;
@@ -611,9 +683,64 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     runs.set(view.runId, { view, card, skillFile: skillPath(config.skillsDir, skill), busy: false });
 
     const started = Date.now();
+    const refresh = () => {
+      view.elapsedMs = Date.now() - started;
+      return card.update(runCard(view));
+    };
+
+    // Live view, two ways. Video: frames go to the site relay and the card embeds the player (Block Kit video).
+    // Image: a private files.uploadV2 every 1.2 s (no channel_id, so the file is never shared to the channel;
+    // the bot owns it, which is what an image block's slack_file needs). Video falls back to image if Slack
+    // rejects the video block.
+    const title = verbTitle(procedure);
+    const live = deps.live ?? null;
+    const liveId = live ? newLiveRunId() : "";
+    let mode: "video" | "image" = live ? "video" : "image";
+    card.onMediaRejected = (reason, hadVideo) => {
+      if (!hadVideo) return;
+      log.warn(`video block rejected by Slack (${reason}); live view falls back to images`);
+      mode = "image";
+      delete view.liveVideo;
+    };
+    const pump =
+      live &&
+      new FramePump(
+        (png) => live.pushFrame(liveId, png, title),
+        () => {
+          if (mode !== "video" || view.phase !== "running") return;
+          view.liveVideo = { url: live.playerUrl(liveId), thumbnailUrl: live.frameUrl(liveId) };
+          void refresh();
+        },
+      );
+    let imageEvery = LIVE_IMAGE_EVERY_MS;
     let lastUpload = 0;
     let uploading = false;
+    const uploadImage = async (path: string) => {
+      uploading = true;
+      lastUpload = Date.now();
+      try {
+        const up = await client.files.uploadV2({
+          file: await readFile(path),
+          filename: basename(path),
+          title: "Live view",
+        });
+        const id = firstUploadedFileId(up);
+        if (id && view.phase === "running") {
+          view.liveImageFileId = id;
+          void refresh();
+        }
+        imageEvery = Math.max(LIVE_IMAGE_EVERY_MS, imageEvery * 0.9);
+      } catch (err) {
+        const retry = retryAfterMs(err);
+        imageEvery = Math.min(LIVE_IMAGE_MAX_MS, retry ?? imageEvery * 2);
+        log.warn("screenshot upload failed", err instanceof Error ? err.message : err);
+      } finally {
+        uploading = false;
+      }
+    };
+
     let executedBy: string = deps.executor.name;
+    let framesDir: string | undefined;
     try {
       const result = await deps.executor.run(
         {
@@ -627,42 +754,20 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
           if (ev.kind === "step") {
             view.steps[ev.index] = ev.state;
             if (ev.note) view.notes[ev.index] = ev.note;
+            void refresh();
           } else if (ev.kind === "needs_you") {
             view.needsYou = ev.message;
           } else if (ev.kind === "screenshot") {
-            if (deps.liveUrl) view.liveUrl = deps.liveUrl;
-            // Throttle: one upload in flight, at most every 4 s.
-            if (uploading || Date.now() - lastUpload < 4_000) return;
-            uploading = true;
-            lastUpload = Date.now();
-            void (async () => {
-              try {
-                const up = await client.files.uploadV2({
-                  file: await readFile(ev.path),
-                  filename: basename(ev.path),
-                  title: "Live view",
-                });
-                const id = firstUploadedFileId(up);
-                if (id) view.liveImageFileId = id;
-                view.elapsedMs = Date.now() - started;
-                void card.update(runCard(view));
-              } catch (err) {
-                log.warn("screenshot upload failed", err instanceof Error ? err.message : err);
-              } finally {
-                uploading = false;
-              }
-            })();
-            return;
-          } else return;
-          view.elapsedMs = Date.now() - started;
-          void card.update(runCard(view));
+            if (pump && mode === "video") pump.offer(ev.path);
+            else if (!uploading && Date.now() - lastUpload >= imageEvery) void uploadImage(ev.path);
+          }
         },
       );
       executedBy = result.executedBy;
-      if (result.framesDir) {
+      framesDir = result.framesDir;
+      if (framesDir) {
         const entry = runs.get(view.runId);
-        if (entry) entry.framesDir = result.framesDir;
-        if (deps.publishVideo) void deps.publishVideo(skill, result.framesDir);
+        if (entry) entry.framesDir = framesDir;
       }
       view.elapsedMs = result.elapsedMs;
       view.drafts = result.drafts;
@@ -678,7 +783,14 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
       view.steps = view.steps.map((s) => (s === "running" ? "failed" : s));
       log.error(`run ${skill} failed:`, view.error);
     }
+    delete view.liveVideo;
+    delete view.liveImageFileId;
     await card.update(runCard(view));
+    const thread = (text: string) =>
+      client.chat.postMessage({ channel: card.channel, thread_ts: card.ts, text }).catch(() => undefined);
+    // The card shows two result lines; when the agent said more (a standup, a list), the rest goes in the thread.
+    if (view.phase === "done" && view.summary && resultLines(view.summary, 99).length > 2)
+      await thread(slackSummary(view.summary));
     if (record)
       await library
         .recordRun({
@@ -690,6 +802,30 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
           elapsedMs: view.elapsedMs,
         })
         .catch((err: unknown) => log.warn("recordRun failed", err instanceof Error ? err.message : err));
+
+    // Replay: the run's timelapse as an mp4 reply in the thread (Slack plays it inline), and on the live player.
+    const video = framesDir && deps.publishVideo ? await deps.publishVideo(skill, framesDir) : null;
+    // A GTM review run gets its replay after Send, when the clip also shows the real sends.
+    if (video && !(view.phase === "review" && deps.sender)) await postReplay(client, card, video.mp4);
+    if (live && pump && pump.seq > 0)
+      await live.finish(liveId, {
+        state: view.phase === "failed" ? "failed" : "done",
+        ...(video?.videoUrl ? { replayUrl: video.videoUrl } : {}),
+      });
+  }
+
+  async function postReplay(client: WebClient, card: LiveCard, mp4: string): Promise<void> {
+    try {
+      await client.files.uploadV2({
+        channel_id: card.channel,
+        thread_ts: card.ts,
+        file: await readFile(mp4),
+        filename: "replay.mp4",
+        title: "Replay",
+      });
+    } catch (err) {
+      log.warn("replay upload failed", err instanceof Error ? err.message : err);
+    }
   }
 
   const routerCommand =
@@ -780,7 +916,10 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     try {
       const res = await deps.sender.send(run.view.drafts, () => undefined, run.framesDir);
       // The clip now shows the whole job: drafting in the browser, then the real sends in Gmail.
-      if (run.framesDir && deps.publishVideo) void deps.publishVideo(run.view.procedure.name, run.framesDir);
+      if (run.framesDir && deps.publishVideo) {
+        const video = await deps.publishVideo(run.view.procedure.name, run.framesDir);
+        if (video) void postReplay(client, run.card, video.mp4);
+      }
       run.view.phase = "sent";
       void run.card.update(runCard(run.view));
       await reply(
@@ -792,6 +931,11 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
       run.busy = false;
       await reply(`Stopped: ${err instanceof Error ? err.message : String(err)}`);
     }
+  });
+
+  // Link buttons open in the browser; Slack still sends the click and expects an ack.
+  app.action(ACTIONS.openLink, async ({ ack }) => {
+    await ack();
   });
 
   app.action<BlockAction<ButtonAction>>(ACTIONS.reviewAll, async ({ ack, action, client }) => {

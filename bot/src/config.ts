@@ -60,6 +60,14 @@ const EnvSchema = z.object({
   // Real sends go ONLY to plus-addresses of this inbox (Keychain OTS_TEST_INBOX). Unset = Send is demo-only.
   OTS_TEST_INBOX: z.string().optional(),
   OTS_MEMORABLE_SCOPE: z.string().default("personal"),
+
+  // Live video in Slack: the site relay + player (Keychain OTS_LIVE_SECRET). No secret = image live view.
+  OTS_LIVE_SECRET: z.string().min(16).optional(),
+  OTS_LIVE_BASE: z.url().default("https://over-the-shoulder-brown.vercel.app"),
+  /** How often the bsk executor takes a screenshot: fast for the live relay, 1.2 s for the image view. */
+  OTS_LIVE_FRAME_MS: z.coerce.number().int().min(100).default(200),
+  /** /learn extraction model (OpenAI); defaults to the fast model. */
+  OTS_LEARN_MODEL: z.string().optional(),
 });
 
 export type Config = z.infer<typeof EnvSchema> & { skillsDir: string; botRoot: string };
