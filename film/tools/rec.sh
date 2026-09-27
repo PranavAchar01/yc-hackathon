@@ -21,6 +21,8 @@ if [ $OP = start ]; then
     end repeat
   end tell" >/dev/null
   sleep 5
+  # Slack's "needs your permission to enable notifications" strip sits at the bottom; close it (harmless if absent).
+  ./tools/click 1683 994; sleep 0.8
   SW=${SW:-$(./tools/wins | grep -E " - YC( - |$)" | grep -i slack | head -1 | cut -f1)}
   [ -z "$SW" ] && { echo "no Slack window"; exit 1; }
   ( while [ ! -e $STOP ]; do ./tools/nudge; sleep 20; done ) &
