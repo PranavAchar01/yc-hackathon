@@ -21,7 +21,7 @@ if [ $OP = start ]; then
     end repeat
   end tell" >/dev/null
   sleep 5
-  SW=$(./tools/wins | grep -E " - YC( - |$)" | grep -i slack | head -1 | cut -f1)
+  SW=${SW:-$(./tools/wins | grep -E " - YC( - |$)" | grep -i slack | head -1 | cut -f1)}
   [ -z "$SW" ] && { echo "no Slack window"; exit 1; }
   ( while [ ! -e $STOP ]; do ./tools/nudge; sleep 20; done ) &
   echo $! > raw/$NAME.nudge.pid

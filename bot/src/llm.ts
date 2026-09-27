@@ -124,7 +124,8 @@ export class OpenAIProvider implements LlmProvider {
     readonly model: string = DEFAULT_OPENAI_MODEL,
     client?: OpenAIClient,
   ) {
-    this.client = client ?? new OpenAI({ apiKey });
+    // Long browser runs brush the per-minute token limit; the SDK waits out 429s (retry-after) before retrying.
+    this.client = client ?? new OpenAI({ apiKey, maxRetries: 8 });
   }
 
   /** Warn (once, at startup) when the configured model is not on this key's model list. */

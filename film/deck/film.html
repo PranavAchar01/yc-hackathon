@@ -65,7 +65,7 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 
 /* S5 the idea: three steps */
 .steps3{display:grid;grid-template-columns:repeat(3,480px);gap:34px;margin-top:70px}
-.step3{padding:40px 38px;text-align:left;min-height:330px;display:flex;flex-direction:column}
+.step3{padding:40px 38px;text-align:left;min-height:250px;display:flex;flex-direction:column}
 .step3 .num{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;font-size:26px;font-weight:800;color:#fff}
 .step3 .t{font-size:40px;font-weight:750;font-weight:700;letter-spacing:-.025em;margin-top:26px}
 .step3 .d{font-size:25px;color:var(--ink2);line-height:1.4;margin-top:14px;font-weight:500}
@@ -120,6 +120,13 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 .demo .tag{position:absolute;top:22px;padding:6px 14px;border-radius:999px;font:600 16px -apple-system,Inter,sans-serif;color:#fff;background:rgba(20,20,24,.55);backdrop-filter:blur(12px);opacity:0}
 .demo .tag.l{left:24px}.demo .tag.r{left:calc(50% + 24px)}
 
+/* Slack-only take: the whole Slack window scaled to fit the frame, never cropped; a slow zoom onto the live card */
+.sl{position:absolute;inset:0;background:#1a1d21;overflow:hidden}
+.sl .zoom{position:absolute;inset:0;will-change:transform}
+.sl video{position:absolute;left:0;top:50%;width:100%;transform:translateY(-50%);background:#1a1d21}
+.sl .badge{position:absolute;right:30px;bottom:26px;font:600 20px -apple-system,"SF Pro Text",Inter,sans-serif;color:#fff;background:rgba(20,20,24,.6);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:8px 18px;opacity:0}
+.sl.light{background:#f5f5f7}
+
 /* S8 close */
 .url{margin-top:54px;font-size:30px;font-weight:600;color:var(--accent)}
 </style>
@@ -169,9 +176,9 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 <section class="scene center" id="s-idea">
   <h2 data-in="0">Show it once.<br><span class="dim">Your team runs it forever.</span></h2>
   <div class="steps3">
-    <div class="step3 card" data-in="1"><div class="num" style="background:var(--aub)">1</div><div class="t">Show it once</div><div class="d">Do the task while it watches with <span class="cmd">/teach</span>, or hand it a screen recording with <span class="cmd">/learn</span>.</div></div>
-    <div class="step3 card" data-in="2"><div class="num" style="background:var(--blue)">2</div><div class="t">It becomes a command</div><div class="d">A real slash command, saved as a procedure your team owns, in a library anyone can search.</div></div>
-    <div class="step3 card" data-in="3"><div class="num" style="background:var(--green)">3</div><div class="t">Anyone runs it</div><div class="d">An agent browser does it on the real site while the whole channel watches it live.</div></div>
+    <div class="step3 card" data-in="1"><div class="num" style="background:var(--aub)">1</div><div class="t">Show it once</div><div class="d"><span class="cmd">/teach</span> or <span class="cmd">/learn</span></div></div>
+    <div class="step3 card" data-in="2"><div class="num" style="background:var(--blue)">2</div><div class="t">It becomes a command</div><div class="d">Saved in your team's library</div></div>
+    <div class="step3 card" data-in="3"><div class="num" style="background:var(--green)">3</div><div class="t">Anyone runs it</div><div class="d">Live, in the channel</div></div>
   </div>
 </section>
 
@@ -197,14 +204,13 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 <section class="scene center" id="s-stack">
   <h2 data-in="0" style="font-size:66px">Built on</h2>
   <div class="stack">
-    <div class="tech card" data-in="1"><div class="n"><span class="dot" style="background:var(--blue)"></span>QM</div><div class="f">Its <b>Memorable memory provider</b> records procedures, not facts. That is the hook the whole product hangs on.</div></div>
-    <div class="tech card" data-in="2"><div class="n"><span class="dot" style="background:var(--gold)"></span>Memorable</div><div class="f">Targets are <b>named by meaning, not coordinates</b>, so a moved button still matches next week.</div></div>
-    <div class="tech card" data-in="3"><div class="n"><span class="dot" style="background:var(--red)"></span>GBrain</div><div class="f">Searches the library with <b>cited answers</b> and says what it doesn't know yet.</div></div>
-    <div class="tech card" data-in="4"><div class="n"><span class="dot" style="background:var(--green)"></span>BrowserSkill</div><div class="f"><b>Accessibility refs, not pixels</b>, in a real logged-in browser, with a hand-off to a human for sign-ins.</div></div>
-    <div class="tech card" data-in="5"><div class="n"><span class="dot" style="background:var(--aub)"></span>Slack</div><div class="f"><b>apps.manifest.update</b> registers a brand-new slash command while the app is running.</div></div>
-    <div class="tech card" data-in="6"><div class="n"><span class="dot" style="background:#10a37f"></span>OpenAI</div><div class="f">Responses API: <b>parallel tool calls</b>, reasoning kept encrypted, nothing stored.</div></div>
+    <div class="tech card" data-in="1"><div class="n"><span class="dot" style="background:var(--aub)"></span>Slack</div><div class="f"><b>Video blocks</b> for the live view. <b>apps.manifest.update</b> adds commands on the fly.</div></div>
+    <div class="tech card" data-in="2"><div class="n"><span class="dot" style="background:var(--green)"></span>BrowserSkill</div><div class="f"><b>Accessibility refs, not pixels</b>, in a real signed-in browser.</div></div>
+    <div class="tech card" data-in="3"><div class="n"><span class="dot" style="background:#10a37f"></span>OpenAI</div><div class="f">Responses API: <b>parallel tool calls</b>, nothing stored.</div></div>
+    <div class="tech card" data-in="4"><div class="n"><span class="dot" style="background:var(--red)"></span>GBrain</div><div class="f">Library search with <b>cited answers</b>.</div></div>
+    <div class="tech card" data-in="5"><div class="n"><span class="dot" style="background:#00e599"></span>Neon</div><div class="f">Postgres for the library and the <b>live frame relay</b>.</div></div>
+    <div class="tech card" data-in="6"><div class="n"><span class="dot" style="background:#000"></span>Vercel</div><div class="f">The live player, the library and <b>Blob</b> for run videos.</div></div>
   </div>
-  <div class="sub" data-in="7" style="font-size:24px;margin-top:34px">Plus Neon Postgres and Vercel Blob for the library and its run videos.</div>
 </section>
 
 <!-- S8 close -->
@@ -251,15 +257,12 @@ window.CAPS = {
     if (!ok) return null;
     const sec = document.createElement("section");
     sec.className = "scene"; sec.id = "s-library";
-    sec.innerHTML = `
-      <div class="chips"><span class="pill glass"><span class="dot" style="background:var(--red)"></span>The library</span><span class="pill glass"><span class="dot" style="background:var(--accent)"></span>over-the-shoulder-brown.vercel.app/library</span><span class="pill glass speed">Real time · live site</span></div>
-      <div class="run3" style="grid-template-columns:1fr"><div class="win"><div class="tb"><span class="l"><i></i><i></i><i></i></span>Command library</div><video muted playsinline preload="auto" src="media/library.mp4"></video></div></div>
-      <div class="cap"></div>`;
+    sec.innerHTML = `<div class="sl light"><div class="zoom"><video muted playsinline preload="auto" src="media/library.mp4"></video></div></div><div class="cap"></div>`;
     document.body.insertBefore(sec, document.querySelector("script:last-of-type"));
     const video = sec.querySelector("video");
     await new Promise((r) => { if (video.readyState >= 1) r(); else video.addEventListener("loadedmetadata", r, { once: true }); });
     sec._run = { meta: { speed: 1, duration: video.duration }, slack: [], video, shot: { style: {} }, cap: sec.querySelector(".cap"),
-      caps: [[1.0, 14.0, "Every run records itself. Hover a command to watch the agent do it."], [14.5, video.duration - 0.5, "Search the library, open one, copy the command. <em>Run it from Slack.</em>"]] };
+      caps: [] };
     return [sec.id, video.duration + 0.8];
   }
 
@@ -283,6 +286,45 @@ window.CAPS = {
     sec.querySelector(".spd").textContent = `${Math.max(1, speed).toFixed(0)}× speed · real run`;
     sec._demo = { m, vs, va, A, B, HOLD, sEnd, speed, el: sec };
     return [sec.id, A + B + HOLD + 0.6];
+  }
+
+  // Slack-only take (film/tools/rec.sh + prep3.sh). Real time while the command is typed, one fast-forward through
+  // the run (at most o.ff seconds), then real time again for the finished card and the check on GitHub.
+  // o: { from, to, ff, zoom, focus:[x,y] (0-1 of the frame), ffFrom, ffTo (mark names), light }
+  async function slackScene(name, o = {}) {
+    const m = await (await fetch(`media/${name}-3.json`)).json();
+    const k = m.marks;
+    const sec = document.createElement("section");
+    sec.className = "scene"; sec.id = "s-" + name;
+    sec.innerHTML = `<div class="sl"><div class="zoom"><video muted playsinline preload="auto" src="media/${name}-3.mp4"></video></div><div class="badge"></div></div>`;
+    document.body.insertBefore(sec, document.querySelector("script"));
+    const v = sec.querySelector("video");
+    await new Promise((r) => { if (v.readyState >= 1) r(); else v.addEventListener("loadedmetadata", r, { once: true }); });
+    const from = Math.max(0, o.from ?? (k.sent ?? 0) - 3.5);
+    const to = Math.min(m.dur - 0.05, o.to ?? m.dur);
+    const a = Math.min(to, (k[o.ffFrom || "sent"] ?? from) + (o.lead ?? 2.5));
+    const b = Math.max(a, Math.min(to, k[o.ffTo || "done"] ?? to));
+    const ff = Math.min(o.ff ?? 15, b - a);
+    const speed = ff > 0 ? (b - a) / ff : 1;
+    sec.querySelector(".badge").textContent = `${Math.round(speed)}× · real run`;
+    sec._slack = { v, from, a, b, ff, speed, to, zoom: o.zoom ?? 1.6, focus: o.focus ?? [0.42, 0.62], z: sec.querySelector(".zoom"), badge: sec.querySelector(".badge") };
+    return [sec.id, (a - from) + ff + (to - b) + 0.4];
+  }
+
+  async function seekSlack(sec, local) {
+    const d = sec._slack;
+    const l1 = d.a - d.from;
+    let ts, ffp = -1;
+    if (local < l1) ts = d.from + local;
+    else if (local < l1 + d.ff) { ffp = (local - l1) / d.ff; ts = d.a + ffp * (d.b - d.a); }
+    else ts = d.b + (local - l1 - d.ff);
+    // zoom in over 0.9 s as the fast-forward starts, back out over 0.9 s as it ends
+    const zi = d.ff > 0 ? Math.min(OUT(cl((local - l1 + 0.3) / 0.9)), OUT(cl((l1 + d.ff + 0.6 - local) / 0.9))) : 0;
+    const sc = 1 + (d.zoom - 1) * zi;
+    d.z.style.transformOrigin = `${d.focus[0] * 100}% ${d.focus[1] * 100}%`;
+    d.z.style.transform = `scale(${sc})`;
+    d.badge.style.opacity = ffp >= 0 && d.speed > 1.5 ? Math.min(1, ffp * d.ff / 0.4, (1 - ffp) * d.ff / 0.4) : 0;
+    await seekTo(d.v, ts);
   }
 
   const seekTo = (v, t) => Math.abs(v.currentTime - t) < 0.001 ? Promise.resolve() :
@@ -330,15 +372,16 @@ window.CAPS = {
   const STAGGER = 0.28;        // delay between data-in items
   // [id, seconds]. Footage scenes are inserted here as they are approved.
   const SCENES = [
-    ["s-title", 5.0], ["s-problem", 9.0], ["s-forget", 8.5], ["s-theme", 8.0], ["s-idea", 10.0],
-    ["s-arch", 12.0], ["s-stack", 14.0], ["s-close", 6.0],
+    ["s-title", 5.0], ["s-problem", 8.0], ["s-forget", 7.5], ["s-theme", 7.5], ["s-idea", 7.0],
+    ["s-stack", 10.0], ["s-close", 6.0],
   ];
-  // Real runs, filmed as two real windows at once. Each loads only if its prepped media exists.
-  const DEMO = [["triage", "Triage new GitHub issues"], ["ship", "Merge the release PR and publish it"], ["standup", "Write the standup"], ["deploys", "Check the production deploy"]];
+  // Real runs, filmed in Slack only (the agent's browser shows inside the card). Each loads if its media exists.
+  // [name, options for slackScene]; the order is the story: learn a command, run it, check it on GitHub.
+  const TAKES = window.TAKES || [["learn", { ff: 6, ffTo: "learned", zoom: 1.35 }], ["create-release", {}], ["triage", {}], ["standup", { ff: 10 }]];
   const built = [];
-  for (const [name, what] of DEMO) {
-    const ok = await fetch(`media/${name}-2v.json`, { method: "HEAD" }).then((r) => r.ok).catch(() => false);
-    if (ok) built.push(await demoScene(name, what));
+  for (const [name, o] of TAKES) {
+    const ok = await fetch(`media/${name}-3.json`, { method: "HEAD" }).then((r) => r.ok).catch(() => false);
+    if (ok) built.push(await slackScene(name, o));
   }
   const lib = await libraryScene();
   if (lib) built.push(lib);
@@ -399,6 +442,7 @@ window.CAPS = {
         animateIn(s.el, local);
         if (s.el._run) await seekRun(s.el, local);
         if (s.el._demo) await seekDemo(s.el, local);
+        if (s.el._slack) await seekSlack(s.el, local);
         if (s.id === "s-arch") { layoutEdges(s.el); packet(s.el, local); }
       }
     }

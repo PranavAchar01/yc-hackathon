@@ -206,8 +206,14 @@ export class BskExecutor implements Executor {
 
   constructor(private readonly o: BskOptions) {}
 
+  /** One command at a time: bsk refuses a session command while another is still running ("previous session
+   * command is still running"), and the live-view screenshot timer shares the agent's session. */
+  private queue: Promise<unknown> = Promise.resolve();
+
   private bsk(args: string[]) {
-    return this.o.runner([this.o.bin, ...args]);
+    const next = this.queue.then(() => this.o.runner([this.o.bin, ...args]));
+    this.queue = next.catch(() => undefined);
+    return next;
   }
 
   /** Idempotent: the script installs once per document. Best effort, never fails a run. */
@@ -478,6 +484,7 @@ export class BskExecutor implements Executor {
       case "step_done":
         return { content: "noted", step: Number(input.step) };
       case "needs_human":
+        log.warn(`bsk needs a human: ${String(input.reason ?? "").slice(0, 300)}`);
         return { content: "stopping for the person", needsYou: true };
       case "finish":
         return { content: "done", finish: String(input.summary ?? "") };
