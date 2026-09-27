@@ -25,4 +25,6 @@ ots_secret OTS_QM_SIGNING_SECRET
 ots_secret MEMORABLE_API_KEY
 # Optional: the one inbox real demo sends may reach, as plus-addresses (you+dana@gmail.com)
 ots_secret OTS_TEST_INBOX
+# Optional: hosted library database (Neon). Unset = local docker Postgres on :5544
+ots_secret OTS_DATABASE_URL
 unset -f ots_secret

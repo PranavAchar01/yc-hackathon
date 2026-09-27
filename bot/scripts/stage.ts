@@ -128,23 +128,32 @@ export function renderTable(all: Line[], secs: number): string {
 }
 
 async function up() {
-  await step("Postgres :5544", async () => {
-    const upRes = sh("docker", ["compose", "-f", COMPOSE, "up", "-d", "postgres"], { timeoutMs: 120_000 });
-    let ok = false;
-    for (let i = 0; i < 30 && !ok; i++) {
-      ok = sh("docker", ["exec", "ots-postgres", "pg_isready", "-U", "ots", "-d", "ots"]).code === 0;
-      if (!ok) await sleep(500);
-    }
+  // A hosted library (Keychain OTS_DATABASE_URL, e.g. Neon) replaces the local container; the bot's own
+  // "Library" health line then proves the connection.
+  if (keychainHas("OTS_DATABASE_URL"))
     add({
-      name: "Postgres :5544",
-      ok,
-      detail: ok
-        ? "ready"
-        : upRes.code === 127
-          ? "docker not found"
-          : "not ready (is Docker Desktop running?)",
+      name: "Library database",
+      ok: true,
+      detail: "hosted (OTS_DATABASE_URL); local Postgres not started",
     });
-  });
+  else
+    await step("Postgres :5544", async () => {
+      const upRes = sh("docker", ["compose", "-f", COMPOSE, "up", "-d", "postgres"], { timeoutMs: 120_000 });
+      let ok = false;
+      for (let i = 0; i < 30 && !ok; i++) {
+        ok = sh("docker", ["exec", "ots-postgres", "pg_isready", "-U", "ots", "-d", "ots"]).code === 0;
+        if (!ok) await sleep(500);
+      }
+      add({
+        name: "Postgres :5544",
+        ok,
+        detail: ok
+          ? "ready"
+          : upRes.code === 127
+            ? "docker not found"
+            : "not ready (is Docker Desktop running?)",
+      });
+    });
 
   await step("GBrain", () => {
     const bunGb = join(homedir(), ".bun", "bin", "gbrain");
