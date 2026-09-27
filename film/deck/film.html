@@ -204,7 +204,7 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 <section class="scene center" id="s-stack">
   <h2 data-in="0" style="font-size:66px">Built on</h2>
   <div class="stack">
-    <div class="tech card" data-in="1"><div class="n"><span class="dot" style="background:var(--aub)"></span>Slack</div><div class="f"><b>Video blocks</b> for the live view. <b>apps.manifest.update</b> adds commands on the fly.</div></div>
+    <div class="tech card" data-in="1"><div class="n"><span class="dot" style="background:var(--aub)"></span>Slack</div><div class="f"><b>Video blocks</b> play the agent's browser live, inside the card.</div></div>
     <div class="tech card" data-in="2"><div class="n"><span class="dot" style="background:var(--green)"></span>BrowserSkill</div><div class="f"><b>Accessibility refs, not pixels</b>, in a real signed-in browser.</div></div>
     <div class="tech card" data-in="3"><div class="n"><span class="dot" style="background:#10a37f"></span>OpenAI</div><div class="f">Responses API: <b>parallel tool calls</b>, nothing stored.</div></div>
     <div class="tech card" data-in="4"><div class="n"><span class="dot" style="background:var(--red)"></span>GBrain</div><div class="f">Library search with <b>cited answers</b>.</div></div>
@@ -301,9 +301,9 @@ window.CAPS = {
     const v = sec.querySelector("video");
     await new Promise((r) => { if (v.readyState >= 1) r(); else v.addEventListener("loadedmetadata", r, { once: true }); });
     const from = Math.max(0, o.from ?? (k.sent ?? 0) - 3.5);
-    const to = Math.min(m.dur - 0.05, o.to ?? m.dur);
-    const a = Math.min(to, (k[o.ffFrom || "sent"] ?? from) + (o.lead ?? 2.5));
-    const b = Math.max(a, Math.min(to, k[o.ffTo || "done"] ?? to));
+    const to = Math.min(m.dur - 0.05, o.to ?? (o.toMark && k[o.toMark] !== undefined ? k[o.toMark] + (o.tail ?? 0) : m.dur));
+    const a = o.realtime ? to : Math.min(to, (k[o.ffFrom || "sent"] ?? from) + (o.lead ?? 2.5));
+    const b = o.realtime ? to : Math.max(a, Math.min(to, k[o.ffTo || "done"] ?? to));
     const ff = Math.min(o.ff ?? 15, b - a);
     const speed = ff > 0 ? (b - a) / ff : 1;
     sec.querySelector(".badge").textContent = `${Math.round(speed)}× · real run`;
@@ -377,7 +377,13 @@ window.CAPS = {
   ];
   // Real runs, filmed in Slack only (the agent's browser shows inside the card). Each loads if its media exists.
   // [name, options for slackScene]; the order is the story: learn a command, run it, check it on GitHub.
-  const TAKES = window.TAKES || [["learn", { ff: 6, ffTo: "learned", zoom: 1.35 }], ["create-release", {}], ["triage", {}], ["standup", { ff: 10 }]];
+  const TAKES = window.TAKES || [
+    ["learn", { ff: 6, ffTo: "learned", toMark: "sheet", tail: -0.3, zoom: 1.3 }],
+    ["learn2", { realtime: true, from: 0, to: 13 }],
+    ["create-release", { ff: 14 }],
+    ["triage", { ff: 15 }],
+    ["standup", { ff: 10 }],
+  ];
   const built = [];
   for (const [name, o] of TAKES) {
     const ok = await fetch(`media/${name}-3.json`, { method: "HEAD" }).then((r) => r.ok).catch(() => false);
