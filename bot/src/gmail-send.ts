@@ -1,4 +1,5 @@
 import type { EmailDraft } from "./demo-data.ts";
+import { cursorScript } from "./executor/cursor.ts";
 import { log } from "./log.ts";
 import type { CliRunner } from "./memorable.ts";
 
@@ -81,16 +82,23 @@ export class GmailSender {
 
   private framesDir: string | undefined;
   private frameN = 0;
+  private onFrame: ((png: string) => void) | undefined;
 
-  /** Add a frame to the run's clip (best effort). */
+  /** Add a frame to the run's clip and the live view (best effort). */
   private async frame(session: string): Promise<void> {
     if (!this.framesDir) return;
     const out = `${this.framesDir}/shot-${Date.now()}-g${String(++this.frameN).padStart(4, "0")}.png`;
-    await this.bsk(["screenshot", "--session", session, "--out", out]).catch(() => undefined);
+    const r = await this.bsk(["screenshot", "--session", session, "--out", out]).catch(() => null);
+    if (r?.code === 0) this.onFrame?.(out);
   }
 
+  /** One bsk command at a time: the frame ticker shares the session with the sends. */
+  private queue: Promise<unknown> = Promise.resolve();
+
   private bsk(args: string[]) {
-    return this.o.runner([this.o.bin, ...args]);
+    const next = this.queue.then(() => this.o.runner([this.o.bin, ...args]));
+    this.queue = next.catch(() => undefined);
+    return next;
   }
 
   /** Open a prefilled compose, click Send, and wait for Gmail's own "Message sent" confirmation. */
@@ -112,8 +120,18 @@ export class GmailSender {
       if (obs.stdout.includes(to)) ref = findSendRef(obs.stdout);
     }
     if (!ref) return "Send button never appeared";
-    await this.frame(session);
-    await this.frame(session);
+    // Let the viewer read the email, then the cursor glides onto Send before the click.
+    await this.bsk([
+      "evaluate",
+      cursorScript({ glideMs: 350 }),
+      "--session",
+      session,
+      "--timeout",
+      "5s",
+    ]).catch(() => null);
+    await new Promise((r) => setTimeout(r, 1200));
+    await this.bsk(["hover", ref, "--session", session, "--timeout", "5s"]).catch(() => null);
+    await new Promise((r) => setTimeout(r, 450));
     const click = await this.bsk(["click", ref, "--session", session]);
     if (click.code !== 0) return "Send click failed";
     for (let i = 0; i < 12; i++) {
@@ -131,8 +149,11 @@ export class GmailSender {
     drafts: EmailDraft[],
     onProgress: (p: SendProgress) => Promise<void> | void,
     framesDir?: string,
+    /** Each new screenshot while sending, for the live view in the card. */
+    onFrame?: (png: string) => void,
   ): Promise<SendResult> {
     this.framesDir = framesDir;
+    this.onFrame = onFrame;
     const result: SendResult = { sent: [], failed: [] };
     const start = await this.bsk([
       "session",
@@ -145,6 +166,15 @@ export class GmailSender {
       start.code === 0 ? (JSON.parse(start.stdout) as { session_id?: string }).session_id : undefined;
     if (!session)
       throw new Error(`bsk session start failed: ${(start.stderr || start.stdout).trim().slice(0, 200)}`);
+    // A frame about every 0.4 s while sending (Gmail's compose, the Send click, "Message sent").
+    let shooting = false;
+    const ticker = setInterval(() => {
+      if (shooting) return;
+      shooting = true;
+      void this.frame(session).finally(() => {
+        shooting = false;
+      });
+    }, 400);
     try {
       for (const d of drafts) {
         const to = testAddressFor(d.to, this.o.inbox);
@@ -161,6 +191,8 @@ export class GmailSender {
         } else result.failed.push({ to, reason: outcome });
       }
     } finally {
+      clearInterval(ticker);
+      await this.frame(session);
       await this.bsk(["session", "stop", session]).catch(() => undefined);
     }
     log.info(

@@ -136,6 +136,25 @@ describe("run card (Apple style)", () => {
     expect(card.blocks.map((b) => b.type)).toEqual(["section", "video"]);
   });
 
+  it("sending: the card streams Gmail doing the sends, with nothing that would need an update", () => {
+    const card = runCard(
+      view({
+        procedure: triage,
+        phase: "sending",
+        drafts: [
+          { to: "a@example.com", toName: "A", company: "X", subject: "s", body: "b", attachment: "" },
+          { to: "b@example.com", toName: "B", company: "Y", subject: "s", body: "b", attachment: "" },
+        ],
+        liveVideo: {
+          url: "https://x.vercel.app/live?run=snd",
+          thumbnailUrl: "https://x.vercel.app/api/live/snd?frame=1",
+        },
+      }),
+    );
+    expect(card.blocks.map((b) => b.type)).toEqual(["section", "video"]);
+    expect(texts(card.blocks)[0]).toBe("◐  *Sending 2 emails*");
+  });
+
   it("done after a live run keeps the same tile, now the replay, with the last frame as thumbnail", () => {
     const card = runCard(
       view({

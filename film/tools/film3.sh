@@ -45,8 +45,10 @@ case $TAKE in
     $T/waitlog.sh "video: /announce" 120; $T/mark.sh $TAKE replay
     sleep 14; $T/mark.sh $TAKE flipped            # the review card: drafts ready, Send
     sleep 2; $T/raise.sh; sleep 0.4; .venv/bin/python $T/clickgreen.py $SW; $T/mark.sh $TAKE send
+    sleep 6; play; $T/mark.sh $TAKE play2                # the card now streams Gmail doing the sends
     $T/waitlog.sh "run announce: sent" 300; $T/mark.sh $TAKE delivered
-    sleep 3; newtab "$GQ"; $T/mark.sh $TAKE verify; sleep 15 ;;   # Gmail search takes a while to fill in
+    $T/waitlog.sh "video: /announce" 120; sleep 3; $T/mark.sh $TAKE sentcard   # the card flips to "3 emails sent"
+    sleep 3; newtab "$GQ"; $T/mark.sh $TAKE verify; sleep 12 ;;   # Gmail search takes ~5 s to fill in
   *) echo "unknown take"; kill $CAF; exit 2 ;;
 esac
 $T/rec.sh stop $TAKE

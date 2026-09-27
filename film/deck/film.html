@@ -447,19 +447,23 @@ window.CAPS = {
       segs: [
         ["sent", -3.5, "sent", 2.5, 1],
         ["sent", 2.5, "play", 1.5, "2.2s"],
-        ["play", 1.5, "done", 0, "10s", 2.2],
-        ["done", 0, "flipped", 0.3, 2],
-        ["flipped", 0.3, "send", 0.9, 1],          // 3 drafts ready, Send
-        ["send", 0.9, "delivered", 1.2, "4s"],     // the sends, fast
-        ["delivered", 1.2, "verify", -0.6, 1],
-        ["verify", 5.2, "verify", 11.8, 1, 1.45, [1.0, 0.28]],
+        ["play", 1.5, "done", 0, "9s", 2.2],                 // the agent drafts, live (reading GitHub)
+        ["done", 0, "flipped", 0.3, 2.5],
+        ["flipped", 0.3, "send", 0.9, 1],                    // 3 drafts ready, Send
+        ["send", 0.9, "play2", 1.5, "2.2s"],                 // the card turns into the Gmail stream, play
+        ["play2", 1.5, "delivered", 0, "11s", 2.2, [0.42, 0.555]],  // Gmail sending, live in the card
+        ["delivered", 0, "sentcard", 0.5, 2.5],
+        ["sentcard", 0.5, "verify", -0.6, 1],                // 3 emails sent
+        ["verify", 5.2, "verify", 11.5, 1, 1.45, [1.0, 0.28]],
       ],
       circles: [
         { at: ["flipped", 0.3], delay: 0.35, until: ["send", 0.9], cx: 690, cy: 352, rx: 120, ry: 28 },
+        { at: ["sentcard", 0.5], delay: 0.3, until: ["verify", -0.6], cx: 712, cy: 378, rx: 140, ry: 28 },
         { at: ["verify", 5.2], delay: 1.1, cx: 1852, cy: 390, rx: 44, ry: 52 },
       ],
       sfx: [["type", "sent", 0.05], ["click", "play", 0], ["whoosh", "play", 1.5], ["chime", "flipped", 0.3], ["pop", "flipped", 0.65],
-        ["click", "send", 0], ["whoosh", "send", 0.9], ["chime", "delivered", 1.2], ["tab", "verify", 5.2], ["pop", "verify", 6.3]],
+        ["click", "send", 0], ["click", "play2", 0], ["whoosh", "play2", 1.5], ["chime", "sentcard", 0.5], ["pop", "sentcard", 0.8],
+        ["tab", "verify", 5.2], ["pop", "verify", 6.3]],
     }],
   ];
   const built = [];

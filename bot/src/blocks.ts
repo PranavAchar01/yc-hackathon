@@ -269,7 +269,7 @@ export function teachFailedCard(input: { skill: string; reason: string }): Card 
 
 // ---------------------------------------------------------------- /gtm and /ots <skill>
 
-export type RunPhase = "running" | "review" | "done" | "sent" | "failed" | "needs_you";
+export type RunPhase = "running" | "review" | "sending" | "done" | "sent" | "failed" | "needs_you";
 
 export interface RunView {
   runId: string;
@@ -438,6 +438,15 @@ export function runCard(v: RunView): Card {
     // With the video the card must stay still (an update resets Slack's player); progress is in the player.
     if (!v.liveVideo) blocks.push(context(`Step ${currentStep(v.steps)} of ${p.steps.length}  ·  ${clock}`));
     return { text: title, blocks };
+  }
+
+  // After Send: the same card streams Gmail doing the sends (and holds still while it does).
+  if (v.phase === "sending") {
+    const line = `Sending ${n} ${n === 1 ? "email" : "emails"}`;
+    blocks.push({ type: "section", text: md(`${MARKS.running}  *${esc(line)}*`) });
+    const live = liveBlock(v);
+    if (live) blocks.push(live);
+    return { text: line, blocks };
   }
 
   if (v.phase === "failed") {

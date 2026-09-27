@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { readFile, rm } from "node:fs/promises";
-import { basename } from "node:path";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, join } from "node:path";
 import {
   App,
   type BlockAction,
@@ -963,17 +964,54 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     const total = run.view.drafts.length;
     await reply(`Sending ${total} through Gmail. Test addresses only.`);
     try {
-      const res = await deps.sender.send(run.view.drafts, () => undefined, run.framesDir);
+      // Live: the same card streams Gmail doing the sends (compose, Send, "Message sent"). It updates once,
+      // when the stream starts, and holds still until the sends are done (an update resets Slack's player).
+      const started = Date.now();
+      const live = deps.live ?? null;
+      const sendId = live ? newLiveRunId() : "";
+      let sent = 0;
+      const framesDir = run.framesDir ?? (await mkdtemp(join(tmpdir(), "ots-send-")));
+      const pump =
+        live &&
+        new FramePump(
+          (png) =>
+            live.pushFrame(
+              sendId,
+              png,
+              `Sending ${total} emails`,
+              `Email ${Math.min(sent + 1, total)} of ${total}  ·  ${formatClock(Date.now() - started)}`,
+            ),
+          () => {
+            run.view.phase = "sending";
+            run.view.liveVideo = { url: live.playerUrl(sendId), thumbnailUrl: live.frameUrl(sendId) };
+            delete run.view.replay;
+            void run.card.update(runCard(run.view));
+          },
+        );
+      const res = await deps.sender.send(
+        run.view.drafts,
+        (p) => {
+          sent = p.sent;
+        },
+        framesDir,
+        pump ? (png) => pump.offer(png) : undefined,
+      );
       log.info(
         `run ${run.view.procedure.name}: sent ${res.sent.length} through Gmail, ${res.failed.length} failed`,
       );
-      // The card says it at once; the replay (drafting, then the real sends in Gmail) follows in the thread.
+      delete run.view.liveVideo;
+      // The replay is the whole job: drafting in the browser, then the real sends in Gmail.
+      const video = deps.publishVideo ? await deps.publishVideo(run.view.procedure.name, framesDir) : null;
+      if (live && pump && pump.seq > 0) {
+        await live.finish(sendId, {
+          state: "done",
+          ...(video?.videoUrl ? { replayUrl: video.videoUrl } : {}),
+        });
+        if (video?.posterUrl)
+          run.view.replay = { url: live.playerUrl(sendId), thumbnailUrl: video.posterUrl };
+      } else if (video) void postReplay(client, run.card, video.mp4);
       run.view.phase = "sent";
-      void run.card.update(runCard(run.view));
-      if (run.framesDir && deps.publishVideo) {
-        const video = await deps.publishVideo(run.view.procedure.name, run.framesDir);
-        if (video) void postReplay(client, run.card, video.mp4);
-      }
+      await run.card.update(runCard(run.view));
       await reply(
         res.failed.length
           ? `${sentLine(res.sent.length)} ${res.failed.length} did not go out: ${res.failed.map((f) => f.reason).join(", ")}.`
