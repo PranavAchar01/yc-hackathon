@@ -91,7 +91,7 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 
 
 /* footage scenes: the agent browser big, "in the cloud"; the Slack card beside it */
-.run3{position:absolute;left:64px;right:64px;top:118px;bottom:104px;display:grid;grid-template-columns:1fr 470px;gap:30px}
+.run3{position:absolute;left:64px;right:64px;top:118px;bottom:104px;display:grid;grid-template-columns:1fr 620px;gap:30px}
 .win{position:relative;border-radius:24px;overflow:hidden;background:#fff;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;min-height:0}
 .win .tb{height:50px;flex:none;display:flex;align-items:center;gap:10px;padding:0 18px;font-size:18px;font-weight:600;color:var(--ink2);border-bottom:1px solid var(--line);background:rgba(255,255,255,.92)}
 .win .tb .l{display:flex;gap:8px;margin-right:6px}.win .tb .l i{width:12px;height:12px;border-radius:50%;background:#e5e5ea}
@@ -100,7 +100,7 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 .win video{flex:1;min-height:0;width:100%;object-fit:cover;object-position:top center;background:#0d1117}
 .win.agent{box-shadow:0 0 0 1px rgba(0,113,227,.22),0 30px 90px rgba(0,113,227,.2)}
 .win.agent .tb{background:linear-gradient(90deg,rgba(0,113,227,.09),rgba(255,255,255,.92))}
-.win.slack .shot{flex:1;min-height:0;background:#1a1d21 center/cover no-repeat;background-position:right bottom}
+.win.slack .shot{flex:1;min-height:0;background:#1a1d21 center/cover no-repeat;background-position:42% 100%}
 .chips{position:absolute;left:64px;right:64px;top:40px;display:flex;gap:14px;align-items:center}
 .chips .pill{font-size:22px}
 .chips .speed{margin-left:auto;font-size:20px;color:var(--ink2)}
@@ -202,8 +202,8 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 
 <script>
 window.CAPS = {
-  triage: [[1.0, 11.5, "Type <em>/triage</em>. An agent opens the real GitHub repo, in the cloud."], [12.0, 26.0, "It reads each new issue and labels it: <em>bug, perf or feature, P1 or P2</em>."], [26.5, 37.5, "The Slack card ticks off every step, live, for the whole channel."]],
-  ship: [[1.0, 11.0, "<em>/ship</em> opens the release PR and checks its tests passed."], [11.5, 21.5, "It reads the diff, then merges the PR. For real."], [22.0, 31.0, "Then it publishes release <em>v0.1.0</em> with notes."]],
+  triage: [[0.8, 7.0, "Type <em>/triage</em>. An agent opens the real GitHub repo, in the cloud."], [7.3, 13.4, "It reads each new issue and labels it: <em>bug, perf or feature, P1 or P2</em>."], [13.7, 19.5, "The Slack card ticks off every step, live, for the whole channel."]],
+  ship: [[0.8, 9.5, "<em>/ship</em> opens the release PR and checks its tests passed."], [9.8, 19.5, "It reads the diff, then merges the PR. For real."], [19.8, 29.5, "Then it publishes release <em>v0.2.0</em> with notes."]],
   standup: [[1.0, 19.5, "<em>/standup</em> reads the repo's last 24 hours and writes the standup."]],
   deploys: [[1.0, 27.0, "<em>/deploys</em> reads the real Vercel dashboard and reports on production."]],
 };
@@ -214,14 +214,14 @@ window.CAPS = {
   // Footage scene: media/<name>-agent.mp4 (full-screen agent browser) + media/<name>-slack.json (timed Slack frames).
   async function runScene(name, opt) {
     const meta = await (await fetch(`media/${name}.json`)).json();
-    const slack = await (await fetch(`media/${name}-slack.json`)).json();
+    const slack = opt.noSlack ? [] : await (await fetch(`media/${name}-slack.json`)).json();
     const sec = document.createElement("section");
     sec.className = "scene"; sec.id = "s-" + name;
     sec.innerHTML = `
       <div class="chips">${opt.chips.map(([t, c]) => `<span class="pill glass"><span class="dot" style="background:${c}"></span>${t}</span>`).join("")}<span class="pill glass speed">${meta.speed > 1 ? `${meta.speed}× speed · real run` : "Real time"}</span></div>
-      <div class="run3">
+      <div class="run3"${opt.noSlack ? ' style="grid-template-columns:1fr"' : ""}>
         <div class="win agent"><div class="tb"><span class="l"><i></i><i></i><i></i></span>☁︎ Agent cloud · worker 01 · ${opt.site}<span class="live"><i></i>LIVE</span></div><video muted playsinline preload="auto" src="media/${name}-agent.mp4"></video></div>
-        <div class="win slack"><div class="tb"><span class="l"><i></i><i></i><i></i></span>Slack · #eng</div><div class="shot"></div></div>
+        ${opt.noSlack ? "" : `<div class="win slack"><div class="tb"><span class="l"><i></i><i></i><i></i></span>Slack · #eng</div><div class="shot"></div></div>`}
       </div>
       <div class="cap"></div>`;
     document.body.insertBefore(sec, document.querySelector("script"));
@@ -229,7 +229,7 @@ window.CAPS = {
     await Promise.all(slack.map((f) => new Promise((r) => { const im = new Image(); im.onload = im.onerror = r; im.src = f.src; })));
     const video = sec.querySelector("video");
     await new Promise((r) => { if (video.readyState >= 1) r(); else video.addEventListener("loadedmetadata", r, { once: true }); });
-    sec._run = { meta, slack, video, shot: sec.querySelector(".shot"), cap: sec.querySelector(".cap"), caps: opt.caps || [] };
+    sec._run = { meta, slack, video, shot: sec.querySelector(".shot") || { style: null }, cap: sec.querySelector(".cap"), caps: opt.caps || [] };
     return [sec.id, Math.min(meta.duration, opt.max || meta.duration) + (opt.pad || 0.8)];
   }
 
@@ -256,7 +256,8 @@ window.CAPS = {
     if (Math.abs(r.video.currentTime - vt) > 0.001) {
       await new Promise((res) => { r.video.addEventListener("seeked", res, { once: true }); r.video.currentTime = vt; });
     }
-    const real = vt * r.meta.speed;
+    const tm = r.meta.timemap;
+    const real = (tm ? tm[Math.min(tm.length - 1, Math.round(vt * 30))] : vt) * r.meta.speed;
     let f = r.slack[0];
     for (const x of r.slack) { if (x.t <= real) f = x; else break; }
     if (f && r.shot.style && r.shot._src !== f.src) { r.shot.style.backgroundImage = `url(${f.src})`; r.shot._src = f.src; }
@@ -277,7 +278,7 @@ window.CAPS = {
   // Real runs, filmed on real sites. Each loads only if its prepped media exists.
   const FOOTAGE = [
     ["triage", { site: "github.com", chips: [["/triage", "var(--aub)"], ["Real GitHub · private repo", "#24292f"]], caps: window.CAPS?.triage }],
-    ["ship", { site: "github.com", chips: [["/ship", "var(--aub)"], ["Merges a real PR · publishes a release", "#24292f"]], caps: window.CAPS?.ship }],
+    ["ship", { site: "github.com", chips: [["/ship", "var(--aub)"], ["Merges a real PR · publishes a release", "#24292f"]], caps: window.CAPS?.ship, noSlack: true, max: 30 }],
     ["standup", { site: "github.com", chips: [["/standup", "var(--aub)"], ["Reads the repo's last 24 hours", "#24292f"]], caps: window.CAPS?.standup }],
     ["deploys", { site: "vercel.com", chips: [["/deploys", "var(--aub)"], ["Real Vercel dashboard · read-only", "#000"]], caps: window.CAPS?.deploys }],
   ];

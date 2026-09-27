@@ -18,13 +18,22 @@ NUDGE=$!
 ./tools/record-run.sh raw/$CMD.mp4 $MAX $S &
 RECPID=$!
 sleep 3
-R=$(bsk observe --session $S 2>&1 | grep -oE '@e[0-9]+ textbox "Message to' | head -1 | cut -d' ' -f1)
-bsk click $R --session $S >/dev/null 2>&1
-bsk press "/" --session $S >/dev/null 2>&1
-for ((i=0;i<${#CMD};i++)); do bsk press "${CMD:$i:1}" --session $S >/dev/null 2>&1; done
-O=$(bsk observe --session $S 2>&1 | grep -oE "@e[0-9]+ button \"/$CMD · " | head -1 | cut -d' ' -f1)
-bsk click $O --session $S >/dev/null 2>&1
-bsk press Enter --session $S >/dev/null 2>&1
+send_cmd() {
+  R=$(bsk observe --session $S 2>&1 | grep -oE '@e[0-9]+ textbox "Message to' | head -1 | cut -d' ' -f1)
+  bsk click $R --session $S >/dev/null 2>&1
+  for k in $(seq 1 12); do bsk press Backspace --session $S >/dev/null 2>&1; done
+  bsk press "/" --session $S >/dev/null 2>&1
+  for ((i=0;i<${#CMD};i++)); do
+    bsk press "${CMD:$i:1}" --session $S >/dev/null 2>&1
+    O=$(bsk observe --session $S 2>&1 | grep -oE "@e[0-9]+ button \"/$CMD · " | head -1 | cut -d' ' -f1)
+    if [ -n "$O" ]; then bsk click $O --session $S >/dev/null 2>&1; bsk press Enter --session $S >/dev/null 2>&1; return 0; fi
+  done
+  return 1
+}
+for attempt in 1 2 3; do
+  send_cmd && sleep 2 && bsk observe --session $S 2>&1 | grep -qE 'textbox "Message to[^"]*" \[empty\]' && break
+  sleep 2
+done
 echo "sent /$CMD at $(date +%T)"
 while [ $(grep -c "run $CMD" $LOG) -le $n0 ] && kill -0 $RECPID 2>/dev/null; do sleep 2; done
 sleep 8

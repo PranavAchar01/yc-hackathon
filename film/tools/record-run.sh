@@ -46,6 +46,7 @@ REC=$!
 python3 -c 'import time;print(int(time.time()*1000))' > "${OUT%.*}.t0"
 END=$((SECONDS + MAX))
 while kill -0 $REC 2>/dev/null && [ ! -e "$OUT.stop" ] && [ $SECONDS -lt $END ]; do sleep 0.5; done
-kill -INT $REC 2>/dev/null; wait $REC 2>/dev/null
+for k in 1 2 3 4 5 6; do kill -0 $REC 2>/dev/null || break; kill -INT $REC 2>/dev/null; sleep 3; done
+wait $REC 2>/dev/null
 touch "$OUT.stop"; wait $ARR $SNAP 2>/dev/null; rm -f "$OUT.stop"; kill $CAF 2>/dev/null
 echo "recorded $OUT ($(ls "$SLACKDIR" | wc -l | tr -d ' ') Slack frames)"
