@@ -1,0 +1,9 @@
+{
+  "name": "ots-film",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "puppeteer-core": "25.11.0",
+    "tsx": "^4.19.0"
+  }
+}

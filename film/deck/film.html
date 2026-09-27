@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Over the Shoulder — film</title>
+<!-- Rendered frame by frame by film/tools/render.mts: window.seek(t) lays out time t. No wall clock anywhere. -->
+<style>
+:root{
+  --bg:#f5f5f7; --ink:#1d1d1f; --ink2:#6e6e73; --ink3:#8e8e93; --line:rgba(0,0,0,.08);
+  --card:#ffffff; --glass:rgba(255,255,255,.62);
+  --aub:#4a154b; --green:#2eb67d; --blue:#36c5f0; --gold:#ecb22e; --red:#e01e5a; --accent:#0071e3;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 12px 40px rgba(0,0,0,.08);
+  --shadow-lg:0 2px 6px rgba(0,0,0,.05),0 30px 80px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg)}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+.mono{font-family:"SF Mono",ui-monospace,Menlo,monospace}
+
+/* soft background: two blurred color fields, like a macOS wallpaper */
+#bg{position:absolute;inset:0;overflow:hidden}
+#bg i{position:absolute;border-radius:50%;filter:blur(120px);opacity:.55}
+#bg .a{width:900px;height:900px;left:-200px;top:-300px;background:#d9e7ff}
+#bg .b{width:800px;height:800px;right:-200px;bottom:-320px;background:#f3dff0}
+#bg .c{width:600px;height:600px;right:420px;top:-260px;background:#e3f6ee}
+
+.scene{position:absolute;inset:0;opacity:0;will-change:opacity}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.kicker{font-size:26px;font-weight:600;color:var(--ink3);letter-spacing:.01em}
+h1{font-size:132px;font-weight:800;letter-spacing:-.045em;line-height:1}
+h2{font-size:84px;font-weight:750;font-weight:700;letter-spacing:-.04em;line-height:1.04}
+h2 .dim,h1 .dim{color:var(--ink3)}
+.sub{font-size:34px;color:var(--ink2);font-weight:500;letter-spacing:-.01em;margin-top:26px;line-height:1.35}
+.glass{background:var(--glass);backdrop-filter:saturate(180%) blur(30px);-webkit-backdrop-filter:saturate(180%) blur(30px);border:1px solid rgba(255,255,255,.7);box-shadow:var(--shadow)}
+.card{background:var(--card);border-radius:28px;box-shadow:var(--shadow)}
+.pill{display:inline-flex;align-items:center;gap:12px;border-radius:999px;padding:12px 22px;font-size:24px;font-weight:600}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+.cmd{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-weight:600;color:var(--aub);background:rgba(74,21,75,.07);border-radius:10px;padding:4px 12px}
+
+/* S2 problem: the same four chores */
+.chores{display:grid;grid-template-columns:repeat(4,340px);gap:28px;margin-top:70px}
+.chore{padding:30px 30px 28px;text-align:left}
+.chore .site{font-size:20px;font-weight:600;color:var(--ink3);display:flex;align-items:center;gap:10px}
+.chore .t{font-size:32px;font-weight:700;letter-spacing:-.02em;margin-top:18px;line-height:1.15}
+.chore .rep{margin-top:22px;display:flex;gap:6px}
+.chore .rep span{flex:1;height:8px;border-radius:4px;background:rgba(0,0,0,.07)}
+.chore .rep span.on{background:var(--c)}
+.chore .when{font-size:19px;color:var(--ink3);margin-top:12px;font-weight:500}
+
+/* S3 agents forget */
+.runs{display:grid;gap:18px;margin-top:64px;width:1100px}
+.run{display:grid;grid-template-columns:160px 1fr 250px;align-items:center;padding:22px 30px;gap:24px;text-align:left}
+.run b{font-size:26px}
+.run .bar{height:14px;border-radius:7px;background:rgba(0,0,0,.06);overflow:hidden}
+.run .bar i{display:block;height:100%;border-radius:7px;background:linear-gradient(90deg,#ff9f0a,#ff375f)}
+.run .n{font-size:24px;color:var(--ink2);font-weight:600;text-align:right}
+
+/* S4 quote */
+.quote{width:1260px;padding:64px 72px;text-align:left}
+.quote p{font-size:64px;font-weight:700;letter-spacing:-.03em;line-height:1.12}
+.quote p em{font-style:normal;background:linear-gradient(90deg,#0071e3,#8e44ad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.quote .who{margin-top:34px;display:flex;align-items:center;gap:16px;font-size:26px;color:var(--ink2);font-weight:600}
+.quote .who i{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#ffb347,#ff6a3d);display:inline-block}
+.after{margin-top:46px;font-size:40px;font-weight:700;letter-spacing:-.02em}
+
+/* S5 the idea: three steps */
+.steps3{display:grid;grid-template-columns:repeat(3,480px);gap:34px;margin-top:70px}
+.step3{padding:40px 38px;text-align:left;min-height:330px;display:flex;flex-direction:column}
+.step3 .num{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;font-size:26px;font-weight:800;color:#fff}
+.step3 .t{font-size:40px;font-weight:750;font-weight:700;letter-spacing:-.025em;margin-top:26px}
+.step3 .d{font-size:25px;color:var(--ink2);line-height:1.4;margin-top:14px;font-weight:500}
+.step3 .d .cmd{font-size:23px}
+
+/* S6 architecture in the cloud */
+.arch{position:relative;width:1640px;height:760px;margin-top:40px}
+.cloud{position:absolute;inset:0;border-radius:60px;background:linear-gradient(180deg,rgba(255,255,255,.75),rgba(255,255,255,.45));border:1px solid rgba(255,255,255,.8);box-shadow:var(--shadow-lg);backdrop-filter:blur(30px)}
+.cloud .label{position:absolute;left:44px;top:34px;font-size:22px;font-weight:700;color:var(--ink3);display:flex;align-items:center;gap:12px;letter-spacing:.02em;text-transform:uppercase}
+.node{position:absolute;width:300px;padding:24px 26px;border-radius:24px;background:#fff;box-shadow:var(--shadow);text-align:left}
+.node .n{font-size:30px;font-weight:750;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:12px}
+.node .r{font-size:21px;color:var(--ink2);margin-top:8px;line-height:1.35;font-weight:500}
+.edge{position:absolute;height:3px;background:linear-gradient(90deg,rgba(0,113,227,.15),rgba(0,113,227,.55));border-radius:2px;transform-origin:left center}
+.edge::after{content:"";position:absolute;right:-2px;top:-5px;border-left:10px solid rgba(0,113,227,.55);border-top:6.5px solid transparent;border-bottom:6.5px solid transparent}
+.packet{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 6px rgba(0,113,227,.18)}
+
+/* S7 stack */
+.stack{display:grid;grid-template-columns:repeat(3,520px);gap:26px;margin-top:56px}
+.tech{padding:30px 32px;text-align:left;min-height:190px}
+.tech .n{font-size:32px;font-weight:750;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:12px}
+.tech .f{font-size:23px;color:var(--ink2);margin-top:12px;line-height:1.38;font-weight:500}
+.tech .f b{color:var(--ink);font-weight:650;font-weight:600}
+
+/* S8 close */
+.url{margin-top:54px;font-size:30px;font-weight:600;color:var(--accent)}
+</style>
+</head>
+<body>
+<div id="bg"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+
+<!-- S1 title -->
+<section class="scene center" id="s-title">
+  <div class="kicker" data-in="0">YC · Own Your Intelligence · September 27</div>
+  <h1 style="margin-top:28px" data-in="1">Over the Shoulder</h1>
+  <div class="sub" data-in="2">Show it once. It's handled forever.</div>
+</section>
+
+<!-- S2 problem -->
+<section class="scene center" id="s-problem">
+  <h2 data-in="0">Every team clicks through<br><span class="dim">the same chores, every day.</span></h2>
+  <div class="chores">
+    <div class="chore card" data-in="1" style="--c:var(--green)"><div class="site"><span class="dot" style="background:#24292f"></span>GitHub</div><div class="t">Triage new issues</div><div class="rep"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></div><div class="when">Every morning</div></div>
+    <div class="chore card" data-in="2" style="--c:var(--blue)"><div class="site"><span class="dot" style="background:#24292f"></span>GitHub</div><div class="t">Write the standup</div><div class="rep"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></div><div class="when">Every morning</div></div>
+    <div class="chore card" data-in="3" style="--c:var(--gold)"><div class="site"><span class="dot" style="background:#24292f"></span>GitHub → Gmail</div><div class="t">Ship the release</div><div class="rep"><span class="on"></span><span class="on"></span><span></span><span></span><span></span></div><div class="when">Every release</div></div>
+    <div class="chore card" data-in="4" style="--c:var(--red)"><div class="site"><span class="dot" style="background:#000"></span>Vercel</div><div class="t">Check the deploy</div><div class="rep"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span></div><div class="when">Every deploy</div></div>
+  </div>
+</section>
+
+<!-- S3 agents forget -->
+<section class="scene center" id="s-forget">
+  <h2 data-in="0">Agents can click.<br><span class="dim">They just forget everything.</span></h2>
+  <div class="runs">
+    <div class="run card" data-in="1"><b>Run 1</b><div class="bar"><i data-grow="1" style="--w:53%"></i></div><div class="n">42 model calls</div></div>
+    <div class="run card" data-in="2"><b>Run 2</b><div class="bar"><i data-grow="2" style="--w:99%"></i></div><div class="n">78 model calls</div></div>
+    <div class="run card" data-in="3"><b>Run 3</b><div class="bar"><i data-grow="3" style="--w:100%"></i></div><div class="n">79 model calls</div></div>
+  </div>
+  <div class="sub" data-in="4" style="font-size:28px">Three real runs of the same task by our own agent. It never gets faster.</div>
+</section>
+
+<!-- S4 theme -->
+<section class="scene center" id="s-theme">
+  <div class="quote card" data-in="0">
+    <p>&ldquo;Build and own your own intelligence: your own agent, your own models, <em>your own memory.</em>&rdquo;</p>
+    <div class="who"><i></i>Garry Tan, announcing this hackathon</div>
+  </div>
+  <div class="after" data-in="1">We built the memory.</div>
+</section>
+
+<!-- S5 the idea -->
+<section class="scene center" id="s-idea">
+  <h2 data-in="0">Show it once.<br><span class="dim">Your team runs it forever.</span></h2>
+  <div class="steps3">
+    <div class="step3 card" data-in="1"><div class="num" style="background:var(--aub)">1</div><div class="t">Show it once</div><div class="d">Do the task while it watches with <span class="cmd">/teach</span>, or hand it a screen recording with <span class="cmd">/learn</span>.</div></div>
+    <div class="step3 card" data-in="2"><div class="num" style="background:var(--blue)">2</div><div class="t">It becomes a command</div><div class="d">A real slash command, saved as a procedure your team owns, in a library anyone can search.</div></div>
+    <div class="step3 card" data-in="3"><div class="num" style="background:var(--green)">3</div><div class="t">Anyone runs it</div><div class="d">An agent browser does it on the real site while the whole channel watches it live.</div></div>
+  </div>
+</section>
+
+<!-- S6 architecture -->
+<section class="scene center" id="s-arch">
+  <h2 data-in="0" style="font-size:66px">How it runs</h2>
+  <div class="arch" data-in="1">
+    <div class="cloud"><div class="label"><svg width="30" height="22" viewBox="0 0 30 22"><path d="M8 21h15a6 6 0 0 0 .8-11.95A8 8 0 0 0 8.2 8.1 6.5 6.5 0 0 0 8 21z" fill="none" stroke="#8e8e93" stroke-width="2"/></svg>Agent cloud</div></div>
+    <div class="node" id="n-slack" style="left:70px;top:300px"><div class="n"><span class="dot" style="background:var(--aub)"></span>Slack</div><div class="r">Slash commands, live run cards, the library tab</div></div>
+    <div class="node" id="n-qm" style="left:470px;top:150px"><div class="n"><span class="dot" style="background:var(--blue)"></span>QM</div><div class="r">The agent harness, one scope per person and channel</div></div>
+    <div class="node" id="n-mem" style="left:470px;top:450px"><div class="n"><span class="dot" style="background:var(--gold)"></span>Memorable</div><div class="r">The procedure: every step, by meaning</div></div>
+    <div class="node" id="n-bsk" style="left:870px;top:300px"><div class="n"><span class="dot" style="background:var(--green)"></span>Agent browser</div><div class="r">BrowserSkill clicks, OpenAI decides</div></div>
+    <div class="node" id="n-sites" style="left:1270px;top:170px"><div class="n">Real sites</div><div class="r">GitHub · Vercel · Gmail</div></div>
+    <div class="node" id="n-lib" style="left:1270px;top:450px"><div class="n"><span class="dot" style="background:var(--red)"></span>Library</div><div class="r">GBrain search, Neon, run videos on Vercel Blob</div></div>
+    <div class="edge" data-edge="n-slack,n-qm"></div><div class="edge" data-edge="n-slack,n-mem"></div>
+    <div class="edge" data-edge="n-qm,n-bsk"></div><div class="edge" data-edge="n-mem,n-bsk"></div>
+    <div class="edge" data-edge="n-bsk,n-sites"></div><div class="edge" data-edge="n-bsk,n-lib"></div>
+    <div class="packet" id="pk"></div>
+  </div>
+</section>
+
+<!-- S7 stack -->
+<section class="scene center" id="s-stack">
+  <h2 data-in="0" style="font-size:66px">Built on</h2>
+  <div class="stack">
+    <div class="tech card" data-in="1"><div class="n"><span class="dot" style="background:var(--blue)"></span>QM</div><div class="f">Its <b>Memorable memory provider</b> records procedures, not facts. That is the hook the whole product hangs on.</div></div>
+    <div class="tech card" data-in="2"><div class="n"><span class="dot" style="background:var(--gold)"></span>Memorable</div><div class="f">Targets are <b>named by meaning, not coordinates</b>, so a moved button still matches next week.</div></div>
+    <div class="tech card" data-in="3"><div class="n"><span class="dot" style="background:var(--red)"></span>GBrain</div><div class="f">Searches the library with <b>cited answers</b> and says what it doesn't know yet.</div></div>
+    <div class="tech card" data-in="4"><div class="n"><span class="dot" style="background:var(--green)"></span>BrowserSkill</div><div class="f"><b>Accessibility refs, not pixels</b>, in a real logged-in browser, with a hand-off to a human for sign-ins.</div></div>
+    <div class="tech card" data-in="5"><div class="n"><span class="dot" style="background:var(--aub)"></span>Slack</div><div class="f"><b>apps.manifest.update</b> registers a brand-new slash command while the app is running.</div></div>
+    <div class="tech card" data-in="6"><div class="n"><span class="dot" style="background:#10a37f"></span>OpenAI</div><div class="f">Responses API: <b>parallel tool calls</b>, reasoning kept encrypted, nothing stored.</div></div>
+  </div>
+  <div class="sub" data-in="7" style="font-size:24px;margin-top:34px">Plus Neon Postgres and Vercel Blob for the library and its run videos.</div>
+</section>
+
+<!-- S8 close -->
+<section class="scene center" id="s-close">
+  <h1 data-in="0" style="font-size:112px">Show it once.<br><span class="dim">It's handled forever.</span></h1>
+  <div class="url" data-in="1">over-the-shoulder-brown.vercel.app</div>
+</section>
+
+<script>
+(() => {
+  const OUT = (p) => 1 - Math.pow(1 - p, 3);
+  const cl = (x) => Math.max(0, Math.min(1, x));
+  const XF = 0.6;              // crossfade between scenes
+  const STAGGER = 0.28;        // delay between data-in items
+  // [id, seconds]. Footage scenes are inserted here as they are approved.
+  const SCENES = [
+    ["s-title", 5.0], ["s-problem", 9.0], ["s-forget", 8.5], ["s-theme", 8.0], ["s-idea", 10.0],
+    ["s-arch", 12.0], ["s-stack", 14.0], ["s-close", 6.0],
+  ];
+  let t0 = 0;
+  const plan = SCENES.map(([id, d]) => { const s = { id, start: t0, dur: d, el: document.getElementById(id) }; t0 += d - XF; return s; });
+  const DURATION = t0 + XF;
+  window.DURATION = DURATION;
+  window.PLAN = plan.map(({ id, start }) => ({ id, start: +start.toFixed(2) }));
+
+  // architecture edges: place between node centres
+  function layoutEdges(scene) {
+    const box = scene.querySelector(".arch");
+    if (!box) return;
+    const r0 = box.getBoundingClientRect();
+    box.querySelectorAll("[data-edge]").forEach((e) => {
+      const [a, b] = e.dataset.edge.split(",").map((id) => document.getElementById(id).getBoundingClientRect());
+      const ax = a.right - r0.left, ay = a.top + a.height / 2 - r0.top, bx = b.left - r0.left, by = b.top + b.height / 2 - r0.top;
+      const len = Math.hypot(bx - ax, by - ay), ang = Math.atan2(by - ay, bx - ax);
+      Object.assign(e.style, { left: `${ax}px`, top: `${ay}px`, width: `${len - 12}px`, transform: `rotate(${ang}rad)` });
+      e._path = { ax, ay, bx, by };
+    });
+  }
+
+  function animateIn(el, local) {
+    el.querySelectorAll("[data-in]").forEach((n) => {
+      const p = OUT(cl((local - 0.25 - Number(n.dataset.in) * STAGGER) / 0.7));
+      n.style.opacity = p;
+      n.style.transform = `translateY(${(1 - p) * 26}px) scale(${0.985 + 0.015 * p})`;
+    });
+    el.querySelectorAll("[data-grow]").forEach((n) => {
+      const p = OUT(cl((local - 0.9 - Number(n.dataset.grow) * 0.45) / 1.1));
+      n.style.width = `calc(${p} * ${getComputedStyle(n).getPropertyValue('--w') || '100%'})`;
+    });
+  }
+
+  function packet(el, local) {
+    const pk = el.querySelector("#pk");
+    if (!pk) return;
+    const edges = [...el.querySelectorAll("[data-edge]")];
+    edges.forEach((e, i) => { e.style.opacity = cl((local - 1.2 - i * 0.25) / 0.5); });
+    const route = ["n-slack,n-qm", "n-qm,n-bsk", "n-bsk,n-sites", "n-bsk,n-lib", "n-slack,n-mem", "n-mem,n-bsk"];
+    const T = 1.4, span = local - 3;
+    if (span < 0) { pk.style.opacity = 0; return; }
+    const k = Math.floor(span / T) % route.length, p = OUT((span % T) / T);
+    const e = edges.find((x) => x.dataset.edge === route[k]);
+    if (!e?._path) return;
+    const { ax, ay, bx, by } = e._path;
+    Object.assign(pk.style, { opacity: 1, left: `${ax + (bx - ax) * p - 7}px`, top: `${ay + (by - ay) * p - 7}px` });
+  }
+
+  window.seek = async (t) => {
+    for (const s of plan) {
+      const local = t - s.start;
+      const a = cl(local / XF) * cl((s.dur - local) / XF);
+      s.el.style.opacity = local < 0 || local > s.dur ? 0 : (s === plan[0] && local < XF ? 1 : a);
+      if (s.el.style.opacity > 0) {
+        animateIn(s.el, local);
+        if (s.id === "s-arch") { layoutEdges(s.el); packet(s.el, local); }
+      }
+    }
+    // background drifts slowly, never shimmers: sub-pixel transforms only
+    document.querySelector("#bg .a").style.transform = `translate(${Math.sin(t / 9) * 40}px,${Math.cos(t / 11) * 30}px)`;
+    document.querySelector("#bg .b").style.transform = `translate(${Math.cos(t / 10) * 40}px,${Math.sin(t / 12) * 30}px)`;
+  };
+  document.fonts.ready.then(() => { window.seek(0); window.deckReady = true; });
+})();
+</script>
+</body>
+</html>
