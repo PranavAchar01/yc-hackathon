@@ -46,7 +46,11 @@ export async function buildVideo(
   await writeFile(list, concatList(frames, secondsPerFrame(frames.length)), "utf8");
   const mp4 = join(dir, "run.mp4");
   const poster = join(dir, "poster.jpg");
+  // Low priority: never compete with long renders on this machine.
   const v = await runner([
+    "nice",
+    "-n",
+    "19",
     ffmpeg,
     "-y",
     "-f",
@@ -74,7 +78,20 @@ export async function buildVideo(
   }
   // Poster: a frame two thirds in, when the work is on screen.
   const pick = frames[Math.floor(frames.length * 0.66)] ?? frames[0] ?? "";
-  const p = await runner([ffmpeg, "-y", "-i", pick, "-vf", "scale=1280:-2", "-q:v", "4", poster]);
+  const p = await runner([
+    "nice",
+    "-n",
+    "19",
+    ffmpeg,
+    "-y",
+    "-i",
+    pick,
+    "-vf",
+    "scale=1280:-2",
+    "-q:v",
+    "4",
+    poster,
+  ]);
   if (p.code !== 0) return null;
   return { mp4, poster, frames: frames.length };
 }

@@ -10,8 +10,8 @@ mkdir -p $OUTDIR
 # Recording is 2x Retina: 3420 x 2224 px. Keep y 136-1036 pt (below the tab, address and debug bars, above the Dock).
 TRIM=(-ss $SS); [ -n "$TO" ] && TRIM+=(-to $TO)
 for pane in slack agent; do
-  X=$([ $pane = slack ] && echo 0 || echo 1710)
-  ffmpeg -v error -y $TRIM -i $IN \
+  X=$([ $pane = slack ] && echo 1710 || echo 0)
+  nice -n 19 ffmpeg -v error -y $TRIM -i $IN \
     -vf "crop=1710:1800:$X:272,setpts=PTS/$SPEED,fps=30,scale=1140:-2:flags=lanczos,format=yuv420p" \
     -c:v libx264 -preset medium -crf 18 -g 1 -an -movflags +faststart $OUTDIR/$NAME-$pane.mp4
 done
