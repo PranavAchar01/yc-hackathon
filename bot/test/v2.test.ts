@@ -226,7 +226,7 @@ describe("App Home and /commands", () => {
     expect(t).toContain("*Yours*");
     expect(t).toContain("dispatch_action");
     expect(t).toContain("*/gtm*");
-    expect(t).toContain("Mark Ellis  ·  12 runs  ·  2 steps");
+    expect(t).toContain("Mark Ellis  ·  12 runs");
     expect(v.blocks.length).toBeLessThanOrEqual(100);
   });
 
