@@ -2,6 +2,7 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
+import type { EmailDraft } from "../demo-data.ts";
 import type { LlmProvider, ToolCall, ToolResult, ToolSpec } from "../llm.ts";
 import { log } from "../log.ts";
 import type { CliRunner, MemorableClient, TraceCall } from "../memorable.ts";
@@ -42,6 +43,13 @@ export const ToolInputs = {
   step_done: z.object({ step: z.number().int().min(1) }),
   needs_human: z.object({ reason: z.string() }),
   finish: z.object({ summary: z.string() }),
+  draft_email: z.object({
+    to: z.string(),
+    name: z.string(),
+    company: z.string(),
+    subject: z.string(),
+    body: z.string(),
+  }),
 } as const;
 export type ToolName = keyof typeof ToolInputs;
 
@@ -107,6 +115,21 @@ export const TOOLS: ToolSpec[] = [
     name: "needs_human",
     description: "Stop: a sign-in, 2FA, CAPTCHA, payment or confirm-access prompt needs the person.",
     parameters: obj({ reason: { type: "string" } }, ["reason"]),
+  },
+  {
+    name: "draft_email",
+    description:
+      "Queue one email draft for the person to review in Slack; nothing is sent until they press Send. Use the contact's @example.com address exactly as written. Short, plain text, no signature placeholders.",
+    parameters: obj(
+      {
+        to: { type: "string" },
+        name: { type: "string" },
+        company: { type: "string" },
+        subject: { type: "string" },
+        body: { type: "string" },
+      },
+      ["to", "name", "company", "subject", "body"],
+    ),
   },
   {
     name: "finish",
@@ -289,6 +312,7 @@ export class BskExecutor implements Executor {
     let lastSnapshot = "";
     let summary = "";
     let needsYou: string | undefined;
+    const drafts: EmailDraft[] = [];
     const llm = this.o.llm;
     if (!llm) throw new Error("no LLM key configured");
     const deadline = started + (this.o.timeoutMs ?? 300_000);
@@ -347,6 +371,7 @@ export class BskExecutor implements Executor {
             summary = out.finish;
             finished = true;
           }
+          if (out.draft && drafts.length < 20) drafts.push(out.draft);
           results.push({ id: use.id, content: out.content, ...(out.isError ? { isError: true } : {}) });
         }
         chat.submit(results);
@@ -369,7 +394,7 @@ export class BskExecutor implements Executor {
     }
     return {
       elapsedMs: Date.now() - started,
-      drafts: [],
+      drafts,
       summary,
       executedBy: "bsk",
       framesDir: shots,
@@ -390,6 +415,7 @@ export class BskExecutor implements Executor {
     step?: number;
     needsYou?: boolean;
     finish?: string;
+    draft?: EmailDraft;
   }> {
     const name = use.name as ToolName;
     const schema = ToolInputs[name];
@@ -483,6 +509,24 @@ export class BskExecutor implements Executor {
       }
       case "step_done":
         return { content: "noted", step: Number(input.step) };
+      case "draft_email": {
+        // Drafts only ever go to made-up @example.com contacts; at Send, code maps each one to a plus-address
+        // of the configured test inbox (gmail-send.ts). Anything else is refused here.
+        const to = String(input.to ?? "")
+          .trim()
+          .toLowerCase();
+        if (!/^[a-z0-9._+-]+@example\.com$/.test(to))
+          return { content: "refused: drafts go to @example.com contacts only", isError: true };
+        const draft: EmailDraft = {
+          to,
+          toName: String(input.name ?? "").slice(0, 80),
+          company: String(input.company ?? "").slice(0, 80),
+          subject: String(input.subject ?? "").slice(0, 150),
+          body: String(input.body ?? "").slice(0, 2000),
+          attachment: "",
+        };
+        return { content: "queued for review", draft };
+      }
       case "needs_human":
         log.warn(`bsk needs a human: ${String(input.reason ?? "").slice(0, 300)}`);
         return { content: "stopping for the person", needsYou: true };

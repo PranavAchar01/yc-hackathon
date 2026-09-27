@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS commands (
                ) STORED
 );
 ALTER TABLE commands ADD COLUMN IF NOT EXISTS start_url text;
+ALTER TABLE commands ADD COLUMN IF NOT EXISTS site_name text;
 ALTER TABLE commands ADD COLUMN IF NOT EXISTS video_url text;
 ALTER TABLE commands ADD COLUMN IF NOT EXISTS poster_url text;
 ALTER TABLE commands ADD COLUMN IF NOT EXISTS video_at timestamptz;

@@ -457,6 +457,7 @@ export function runCard(v: RunView): Card {
   if (v.phase === "review" || v.phase === "sent") {
     const head = v.phase === "sent" ? `${sentLine(n).replace(/\.$/, "")}  ·  ${clock}` : `Done  ·  ${clock}`;
     blocks.push({ type: "section", text: md(`${MARKS.done}  *${esc(head)}*`) });
+    if (v.replay) blocks.push(videoBlock(v.replay, `Replay  ·  ${title}`, "Replay of the agent's run"));
     const first = v.drafts[0];
     if (v.phase === "review") {
       const lines = [`${n} ${n === 1 ? "draft" : "drafts"} ready`];

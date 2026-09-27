@@ -1193,6 +1193,27 @@
         "tariq": 2,
         "aisha": 1
       }
+    },
+    {
+      "name": "announce",
+      "title": "Announce the release",
+      "description": "Email the latest over-the-shoulder release to the launch list, one short note per contact, queued for review",
+      "emoji": ":mega:",
+      "team": "gtm",
+      "author": "pranav",
+      "visibility": "everyone",
+      "registered": "slash",
+      "startUrl": "https://github.com/PranavAchar01/over-the-shoulder/releases/latest",
+      "steps": [
+        "Read the latest release on this page: its version, title and notes, and copy its URL",
+        "Open https://github.com/PranavAchar01/over-the-shoulder/blob/main/launch/contacts.csv and read every contact",
+        "For each contact call draft_email once: to their email exactly as written, a subject naming the version, and a two-sentence body that says what shipped and links the release",
+        "Call finish with one line per draft: name, company"
+      ],
+      "usage": {
+        "pranav": 3,
+        "mark": 2
+      }
     }
   ]
 }

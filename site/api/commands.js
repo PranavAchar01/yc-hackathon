@@ -7,7 +7,7 @@ const pool = new pg.Pool({
   ssl: process.env.DATABASE_URL?.includes("localhost") ? false : { rejectUnauthorized: false },
 });
 
-const COLS = `name, title, description, author_name, uses, steps, registered, created_at, video_url, poster_url, video_at`;
+const COLS = `name, title, description, author_name, uses, steps, registered, created_at, video_url, poster_url, video_at, site_name`;
 
 export default async function handler(req, res) {
   const q = String(req.query?.q ?? "").trim().slice(0, 200);

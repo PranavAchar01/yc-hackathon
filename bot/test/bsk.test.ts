@@ -147,6 +147,7 @@ describe("bsk helpers", () => {
       "scroll_to",
       "step_done",
       "needs_human",
+      "draft_email",
       "finish",
     ]);
     for (const t of TOOLS)
@@ -215,6 +216,33 @@ describe("BskExecutor", () => {
       "https://github.com/PranavAchar01/over-the-shoulder/releases",
       "--session",
       "s-42",
+    ]);
+  });
+
+  it("queues email drafts for review, only to @example.com contacts", async () => {
+    const d = {
+      name: "Dana",
+      company: "Contoso",
+      subject: "v1.2.0 is out",
+      body: "Hi Dana, v1.2.0 shipped.",
+    };
+    const { llm } = fakeLlm([
+      [
+        use("t1", "draft_email", { ...d, to: "dana@example.com" }),
+        use("t2", "draft_email", { ...d, to: "ceo@realco.com" }),
+      ],
+      [use("t3", "finish", { summary: "1 draft queued" })],
+    ]);
+    const res = await make(fakeBsk().runner, llm).run(task, () => undefined);
+    expect(res.drafts).toEqual([
+      {
+        to: "dana@example.com",
+        toName: "Dana",
+        company: "Contoso",
+        subject: "v1.2.0 is out",
+        body: "Hi Dana, v1.2.0 shipped.",
+        attachment: "",
+      },
     ]);
   });
 

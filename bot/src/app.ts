@@ -477,27 +477,31 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     const show = () => card.update(learnWatchingCard(state));
     let dir: string | undefined;
     try {
-      const out = await deps.learner.learn(check.url, (p) => {
-        if (p.phase === "done") return;
-        state.phase = p.phase;
-        if (p.frames) state.frames = p.frames.length;
-        void show();
-        if (p.phase === "reading" && p.frames) {
-          // Filmstrip: uploaded in parallel while the model reads, never in its way.
-          const picks = subsample(p.frames, LEARN_THUMBS);
-          void Promise.all(
-            picks.map((f) =>
-              readFile(f)
-                .then((file) => client.files.uploadV2({ file, filename: basename(f), title: "Frame" }))
-                .then(firstUploadedFileId)
-                .catch(() => undefined),
-            ),
-          ).then((ids) => {
-            state.thumbFileIds = ids.filter((id): id is string => !!id);
-            void show();
-          });
-        }
-      });
+      const out = await deps.learner.learn(
+        check.url,
+        (p) => {
+          if (p.phase === "done") return;
+          state.phase = p.phase;
+          if (p.frames) state.frames = p.frames.length;
+          void show();
+          if (p.phase === "reading" && p.frames) {
+            // Filmstrip: uploaded in parallel while the model reads, never in its way.
+            const picks = subsample(p.frames, LEARN_THUMBS);
+            void Promise.all(
+              picks.map((f) =>
+                readFile(f)
+                  .then((file) => client.files.uploadV2({ file, filename: basename(f), title: "Frame" }))
+                  .then(firstUploadedFileId)
+                  .catch(() => undefined),
+              ),
+            ).then((ids) => {
+              state.thumbFileIds = ids.filter((id): id is string => !!id);
+              void show();
+            });
+          }
+        },
+        targetUrl ?? undefined,
+      );
       dir = out.dir;
       const x = out.learned;
       const draft: Draft = {
@@ -816,7 +820,7 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
       video = framesDir && deps.publishVideo ? await deps.publishVideo(skill, framesDir) : null;
       if (video?.videoUrl) {
         await live.finish(liveId, { state: finalState, replayUrl: video.videoUrl });
-        if (view.phase === "done" && video.posterUrl)
+        if ((view.phase === "done" || view.phase === "review") && video.posterUrl)
           view.replay = { url: live.playerUrl(liveId), thumbnailUrl: video.posterUrl };
         // Someone watching sees the stream fade into the replay; let it play once before the card update
         // (which resets Slack's player) turns the tile into the replay with the final frame.
@@ -960,6 +964,7 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     await reply(`Sending ${total} through Gmail. Test addresses only.`);
     try {
       const res = await deps.sender.send(run.view.drafts, () => undefined, run.framesDir);
+      log.info(`run ${run.view.procedure.name}: sent ${res.sent.length} through Gmail, ${res.failed.length} failed`);
       // The clip now shows the whole job: drafting in the browser, then the real sends in Gmail.
       if (run.framesDir && deps.publishVideo) {
         const video = await deps.publishVideo(run.view.procedure.name, run.framesDir);

@@ -60,6 +60,8 @@ h1{font-size:clamp(34px,5.5vw,52px);font-weight:800;letter-spacing:-.035em;line-
 .card:focus-visible .media{outline:3px solid var(--accent);outline-offset:3px}
 .media video,.media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top left;background:var(--tile)}
 .badge{position:absolute;left:10px;bottom:10px;font-size:11.5px;font-weight:600;color:#fff;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:6px;padding:3px 7px;display:flex;align-items:center;gap:5px}
+.media img.shot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top left}
+.badge.site{gap:0}
 .badge i{width:0;height:0;border-left:6px solid #fff;border-top:4px solid transparent;border-bottom:4px solid transparent}
 /* generated cover: soft team gradient, one white glyph, the slash command in SF Mono */
 .cover{position:absolute;inset:0;overflow:hidden;color:#fff;background:linear-gradient(135deg,var(--c0),var(--c1))}
@@ -144,11 +146,14 @@ import { coverHtml } from "/covers.js";
   let items = [];
   let seq = 0;
 
-  // Every tile has a picture: the real run's video and poster, or a generated cover.
+  // Every tile has a picture: the real run's video, else a real screenshot of the site it works on (poster_url
+  // with site_name), else a generated cover.
   const cover = (c) => coverHtml(c, cmdOf(c));
+  const shot = (c) =>
+    `<img class="shot" loading="lazy" alt="" src="${esc(c.poster_url)}"><span class="badge site">${esc(c.site_name || "")}</span>`;
 
   function media(c) {
-    if (!c.video_url) return cover(c);
+    if (!c.video_url) return c.poster_url ? shot(c) : cover(c);
     return `<video muted loop playsinline preload="none" poster="${esc(c.poster_url)}" src="${esc(c.video_url)}"></video><span class="badge"><i></i>Real run</span>`;
   }
 
@@ -195,7 +200,7 @@ import { coverHtml } from "/covers.js";
     if (!c) return;
     const cmd = cmdOf(c);
     qlbody.innerHTML = `
-      <div class="stage"><button class="close" aria-label="Close">×</button>${c.video_url ? `<video controls autoplay muted loop playsinline poster="${esc(c.poster_url)}" src="${esc(c.video_url)}"></video>` : cover(c)}</div>
+      <div class="stage"><button class="close" aria-label="Close">×</button>${c.video_url ? `<video controls autoplay muted loop playsinline poster="${esc(c.poster_url)}" src="${esc(c.video_url)}"></video>` : c.poster_url ? `<img class="shot" alt="" src="${esc(c.poster_url)}">` : cover(c)}</div>
       <div class="body">
         <div>
           <h2>${esc(c.title)}</h2>

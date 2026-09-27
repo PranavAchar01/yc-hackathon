@@ -44,6 +44,8 @@ export function composeUrl(to: string, subject: string, body: string): string {
 }
 
 export function emailBody(d: EmailDraft, videoUrl: string): string {
+  // Agent-written drafts carry no attachment: the body stands on its own.
+  if (!d.attachment) return d.body;
   return `${d.body}\n\nOne-pager: ${d.attachment}\nLaunch video: ${videoUrl}`;
 }
 
