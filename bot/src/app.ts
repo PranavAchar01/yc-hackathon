@@ -180,6 +180,11 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     appToken: config.SLACK_APP_TOKEN,
     socketMode: true,
     logLevel: LogLevel.WARN,
+    // On stage Wi-Fi, fail fast: the default policy retries for ~30 minutes and freezes whatever awaits it.
+    clientOptions: {
+      retryConfig: { retries: 2, factor: 1.5, minTimeout: 500, maxTimeout: 2_000 },
+      timeout: 10_000,
+    },
   });
 
   const teaching = new Map<string, TeachSession>();
@@ -514,22 +519,27 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
             if (uploading || Date.now() - lastUpload < 4_000) return;
             uploading = true;
             lastUpload = Date.now();
-            try {
-              const up = await client.files.uploadV2({
-                file: await readFile(ev.path),
-                filename: basename(ev.path),
-                title: "Live view",
-              });
-              const id = firstUploadedFileId(up);
-              if (id) view.liveImageFileId = id;
-            } catch (err) {
-              log.warn("screenshot upload failed", err instanceof Error ? err.message : err);
-            } finally {
-              uploading = false;
-            }
+            void (async () => {
+              try {
+                const up = await client.files.uploadV2({
+                  file: await readFile(ev.path),
+                  filename: basename(ev.path),
+                  title: "Live view",
+                });
+                const id = firstUploadedFileId(up);
+                if (id) view.liveImageFileId = id;
+                view.elapsedMs = Date.now() - started;
+                void card.update(runCard(view));
+              } catch (err) {
+                log.warn("screenshot upload failed", err instanceof Error ? err.message : err);
+              } finally {
+                uploading = false;
+              }
+            })();
+            return;
           } else return;
           view.elapsedMs = Date.now() - started;
-          await card.update(runCard(view));
+          void card.update(runCard(view));
         },
       );
       executedBy = result.executedBy;

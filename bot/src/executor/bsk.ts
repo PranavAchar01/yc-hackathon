@@ -251,7 +251,11 @@ export class BskExecutor implements Executor {
       for (let turn = 0; turn < (this.o.maxTurns ?? 60) && !finished; turn++) {
         if (signal?.aborted) throw new Error("aborted");
         if (Date.now() > deadline) throw new Error("the browser run took too long");
+        const t0 = Date.now();
         const reply = await chat.next();
+        log.info(
+          `bsk turn: model ${Date.now() - t0} ms -> ${reply.calls.map((c) => c.name).join(", ") || "(finished)"}`,
+        );
         if (reply.refused) throw new Error("the model declined this run");
         const uses = reply.calls;
         if (uses.length === 0) break;
