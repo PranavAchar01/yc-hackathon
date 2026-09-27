@@ -81,6 +81,35 @@ export class GmailSender {
     return this.o.runner([this.o.bin, ...args]);
   }
 
+  /** Open a prefilled compose, click Send, and wait for Gmail's own "Message sent" confirmation. */
+  private async sendOne(session: string, to: string, d: EmailDraft): Promise<"sent" | string> {
+    const nav = await this.bsk([
+      "navigate",
+      composeUrl(to, d.subject, emailBody(d, this.o.videoUrl)),
+      "--session",
+      session,
+    ]);
+    if (nav.code !== 0) return "could not open Gmail";
+    let ref: string | null = null;
+    for (let i = 0; i < (this.o.readyTries ?? 12) && !ref; i++) {
+      await this.bsk(["wait-for-navigation", "--session", session, "--timeout", "1s"]);
+      const obs = await this.bsk(["observe", "--session", session]);
+      if (/Choose an account|Sign in to continue/i.test(obs.stdout))
+        throw new Error("Gmail needs you to sign in");
+      // The compose body loads after the Send button: wait until the recipient chip is on screen too.
+      if (obs.stdout.includes(to)) ref = findSendRef(obs.stdout);
+    }
+    if (!ref) return "Send button never appeared";
+    const click = await this.bsk(["click", ref, "--session", session]);
+    if (click.code !== 0) return "Send click failed";
+    for (let i = 0; i < 12; i++) {
+      await this.bsk(["wait-for-navigation", "--session", session, "--timeout", "1s"]);
+      const after = (await this.bsk(["observe", "--session", session])).stdout;
+      if (/Message sent/i.test(after)) return "sent";
+    }
+    return "Gmail never confirmed the send";
+  }
+
   async send(
     drafts: EmailDraft[],
     onProgress: (p: SendProgress) => Promise<void> | void,
@@ -104,45 +133,13 @@ export class GmailSender {
           result.failed.push({ to, reason: "not a test address" });
           continue;
         }
-        const nav = await this.bsk([
-          "navigate",
-          composeUrl(to, d.subject, emailBody(d, this.o.videoUrl)),
-          "--session",
-          session,
-        ]);
-        if (nav.code !== 0) {
-          result.failed.push({ to, reason: "could not open Gmail" });
-          continue;
-        }
-        let ref: string | null = null;
-        for (let i = 0; i < (this.o.readyTries ?? 12) && !ref; i++) {
-          await this.bsk(["wait-for-navigation", "--session", session, "--timeout", "1s"]);
-          const obs = await this.bsk(["observe", "--session", session]);
-          if (/Sign in|Choose an account/i.test(obs.stdout)) throw new Error("Gmail needs you to sign in");
-          ref = findSendRef(obs.stdout);
-        }
-        if (!ref) {
-          result.failed.push({ to, reason: "Send button never appeared" });
-          continue;
-        }
-        const click = await this.bsk(["click", ref, "--session", session]);
-        if (click.code !== 0) {
-          result.failed.push({ to, reason: "Send click failed" });
-          continue;
-        }
-        // Leaving the page while Gmail still says "Sending..." can drop the message: wait for the hand-off.
-        let confirmed = false;
-        for (let i = 0; i < 10 && !confirmed; i++) {
-          await this.bsk(["wait-for-navigation", "--session", session, "--timeout", "1s"]);
-          const after = (await this.bsk(["observe", "--session", session])).stdout;
-          confirmed = /Message sent/i.test(after) || (i >= 2 && !/Sending/i.test(after));
-        }
-        if (!confirmed) {
-          result.failed.push({ to, reason: "Gmail never confirmed the send" });
-          continue;
-        }
-        result.sent.push(to);
-        await onProgress({ sent: result.sent.length, total: drafts.length, to });
+        // One retry: a send only counts once Gmail itself says "Message sent".
+        let outcome = await this.sendOne(session, to, d);
+        if (outcome !== "sent") outcome = await this.sendOne(session, to, d);
+        if (outcome === "sent") {
+          result.sent.push(to);
+          await onProgress({ sent: result.sent.length, total: drafts.length, to });
+        } else result.failed.push({ to, reason: outcome });
       }
     } finally {
       await this.bsk(["session", "stop", session]).catch(() => undefined);
