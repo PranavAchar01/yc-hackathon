@@ -23,15 +23,18 @@ export class ResilientExecutor implements Executor {
   }
 
   async run(task: RunTask, onEvent: EventSink, signal?: AbortSignal): Promise<RunResult> {
-    if (!this.primary || this.forceScripted()) return this.fallback.run(task, onEvent, signal);
+    // A command on a real site must never "finish" with the scripted demo: that would show work that did not happen.
+    const real = !!task.startUrl;
+    if (!this.primary || (this.forceScripted() && !real)) return this.fallback.run(task, onEvent, signal);
     if (!(await this.primary.healthy().catch(() => false))) {
+      if (real) throw new Error("the agent browser is not connected");
       log.warn(`${this.primary.name} not ready; running scripted`);
       return this.fallback.run(task, onEvent, signal);
     }
     try {
       return await this.primary.run(task, onEvent, signal);
     } catch (err) {
-      if (signal?.aborted) throw err;
+      if (signal?.aborted || real) throw err;
       log.error(
         `${this.primary.name} failed mid-run, finishing with scripted:`,
         err instanceof Error ? err.message : err,

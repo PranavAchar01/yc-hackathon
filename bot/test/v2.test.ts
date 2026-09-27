@@ -335,6 +335,24 @@ describe("ResilientExecutor (stage safety)", () => {
     ).toBe("bsk");
   });
 
+  it("never fakes a real-site run: a failure on a real site is reported, not replaced by scripted", async () => {
+    const real = { ...task, startUrl: "https://github.com/PranavAchar01/over-the-shoulder/issues" };
+    const boom = new ResilientExecutor(
+      primary(true, async () => {
+        throw new Error("the browser run took too long");
+      }),
+      scripted,
+      () => false,
+    );
+    await expect(boom.run(real, () => {})).rejects.toThrow("took too long");
+    const red = new ResilientExecutor(
+      primary(false, async () => ok),
+      scripted,
+      () => true,
+    );
+    await expect(red.run(real, () => {})).rejects.toThrow("not connected");
+  });
+
   it("silently uses scripted when red, forced, or failing mid-run", async () => {
     const red = new ResilientExecutor(
       primary(false, async () => ok),

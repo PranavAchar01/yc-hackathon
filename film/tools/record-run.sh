@@ -6,8 +6,12 @@
 # Stop early: touch <out.mov>.stop
 set -u
 OUT=$1; MAX=${2:-420}
-W=1710; H=1112; TOP=25; MID=$((W / 2))
+W=1710; H=1040; TOP=25; MID=$((W / 2))
 
+caffeinate -dimsu -t $((MAX + 30)) &
+CAF=$!
+osascript -e 'tell application "Google Chrome" to activate' >/dev/null
+sleep 0.5
 before=$(osascript -e 'tell application "Google Chrome" to get id of every window' | tr -d ' ')
 osascript -e "tell application \"Google Chrome\"
   repeat with w in windows
@@ -22,7 +26,7 @@ end tell" >/dev/null
   while [ ! -e "$OUT.stop" ]; do
     for id in $(osascript -e 'tell application "Google Chrome" to get id of every window' | tr -d ' ' | tr ',' ' '); do
       case ",$before," in *",$id,"*) ;; *)
-        osascript -e "tell application \"Google Chrome\" to set bounds of (first window whose id is $id) to {$MID, $TOP, $W, $H}" >/dev/null 2>&1 ;;
+        osascript -e "tell application \"Google Chrome\" to set bounds of (first window whose id is $id) to {$MID, $TOP, $W, $H}" -e "tell application \"Google Chrome\" to set index of (first window whose id is $id) to 1" >/dev/null 2>&1 ;;
       esac
     done
     sleep 0.5
@@ -33,6 +37,6 @@ ARR=$!
 screencapture -v -x -V "$MAX" "$OUT" &
 REC=$!
 while kill -0 $REC 2>/dev/null && [ ! -e "$OUT.stop" ]; do sleep 0.5; done
-kill -INT $REC 2>/dev/null; wait $REC 2>/dev/null
+pkill -INT -x screencapture 2>/dev/null; wait $REC 2>/dev/null; kill $CAF 2>/dev/null
 touch "$OUT.stop"; wait $ARR 2>/dev/null; rm -f "$OUT.stop"
 echo "recorded $OUT"

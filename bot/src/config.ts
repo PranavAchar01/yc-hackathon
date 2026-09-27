@@ -32,7 +32,7 @@ const EnvSchema = z.object({
   OTS_QM_SIGNING_SECRET: z.string().optional(),
 
   BSK_BIN: z.string().default(`${process.env.HOME ?? ""}/.local/bin/bsk`),
-  BSK_TIMEOUT_MS: z.coerce.number().int().positive().default(420_000),
+  BSK_TIMEOUT_MS: z.coerce.number().int().positive().default(900_000),
   BSK_EFFORT: z.enum(["low", "medium", "high"]).default("medium"),
 
   OTS_DATABASE_URL: z.string().default("postgres://ots:ots@127.0.0.1:5544/ots"),
