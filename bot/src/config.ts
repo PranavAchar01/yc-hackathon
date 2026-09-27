@@ -48,6 +48,8 @@ const EnvSchema = z.object({
 
   OTS_SKILLS_DIR: z.string().optional(),
   OTS_REQUESTER: z.string().default("Priya"),
+  // Real sends go ONLY to plus-addresses of this inbox (Keychain OTS_TEST_INBOX). Unset = Send is demo-only.
+  OTS_TEST_INBOX: z.string().optional(),
   OTS_MEMORABLE_SCOPE: z.string().default("personal"),
 });
 

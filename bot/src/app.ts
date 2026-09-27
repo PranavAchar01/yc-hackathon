@@ -20,6 +20,7 @@ import {
   type RunView,
   reviewAllBlocks,
   runCard,
+  sentLine,
   sentThreadReply,
   teachFailedCard,
   teachLearnedCard,
@@ -33,6 +34,7 @@ import { type CommandDrafter, type Draft, suggestEmoji, suggestName } from "./dr
 import type { Executor } from "./executor/types.ts";
 import type { StepExtractor } from "./extract.ts";
 import { MAX_FRAMES, subsample } from "./extract.ts";
+import type { GmailSender } from "./gmail-send.ts";
 import { commandsMessage, HOME_SEARCH, homeView, publishedMessage } from "./home.ts";
 import { type CommandLibrary, type CommandRecord, canSee, invocation } from "./library/types.ts";
 import { log } from "./log.ts";
@@ -63,6 +65,8 @@ export interface Deps {
   publisher: Publisher;
   /** Optional link to watch the run live, shown on browser runs. */
   liveUrl?: string;
+  /** Real Gmail sends to test plus-addresses. Absent = Send is demo-only. */
+  sender?: GmailSender;
 }
 
 /** Commands this app handles itself. Everything else that reaches us is a published command. */
@@ -642,15 +646,33 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     const run = runs.get(action.value ?? "");
     if (!run || run.busy || run.view.phase !== "review") return;
     run.busy = true;
-    // Demo only: nothing is sent. The card moves to its done state and we reply in thread.
-    run.view.phase = "sent";
-    await run.card.update(runCard(run.view));
-    await client.chat.postMessage({
-      channel: run.card.channel,
-      thread_ts: run.card.ts,
-      text: sentThreadReply(run.view.drafts.length, firstName(config.OTS_REQUESTER)),
-    });
-    log.info(`run ${run.view.procedure.name}: Send pressed (demo, no email sent)`);
+    const reply = (text: string) =>
+      client.chat
+        .postMessage({ channel: run.card.channel, thread_ts: run.card.ts, text })
+        .catch(() => undefined);
+    if (!deps.sender) {
+      // Demo only: nothing is sent. The card moves to its done state and we reply in thread.
+      run.view.phase = "sent";
+      await run.card.update(runCard(run.view));
+      await reply(sentThreadReply(run.view.drafts.length, firstName(config.OTS_REQUESTER)));
+      log.info(`run ${run.view.procedure.name}: Send pressed (demo, no email sent)`);
+      return;
+    }
+    const total = run.view.drafts.length;
+    await reply(`Sending ${total} through Gmail. Test addresses only.`);
+    try {
+      const res = await deps.sender.send(run.view.drafts, () => undefined);
+      run.view.phase = "sent";
+      void run.card.update(runCard(run.view));
+      await reply(
+        res.failed.length
+          ? `${sentLine(res.sent.length)} ${res.failed.length} did not go out: ${res.failed.map((f) => f.reason).join(", ")}.`
+          : sentThreadReply(res.sent.length, firstName(config.OTS_REQUESTER)),
+      );
+    } catch (err) {
+      run.busy = false;
+      await reply(`Stopped: ${err instanceof Error ? err.message : String(err)}`);
+    }
   });
 
   app.action<BlockAction<ButtonAction>>(ACTIONS.reviewAll, async ({ ack, action, client }) => {

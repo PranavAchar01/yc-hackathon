@@ -5,12 +5,14 @@ import { join } from "node:path";
 import { createApiServer, type HealthLine } from "./api.ts";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
+import { LAUNCH_VIDEO_URL } from "./demo-data.ts";
 import { LlmDrafter } from "./draft.ts";
 import { BskExecutor } from "./executor/bsk.ts";
 import { QmExecutor } from "./executor/qm.ts";
 import { ScriptedExecutor } from "./executor/scripted.ts";
 import { type CheckedExecutor, ResilientExecutor } from "./executor/select.ts";
 import { LlmStepExtractor } from "./extract.ts";
+import { GmailSender, parseTestInbox } from "./gmail-send.ts";
 import { MemoryLibrary } from "./library/memory.ts";
 import { PgLibrary } from "./library/pg.ts";
 import { seedIfEmpty } from "./library/seed.ts";
@@ -149,8 +151,23 @@ const extractor = llm ? new LlmStepExtractor(llm) : null;
 const drafter = llm ? new LlmDrafter(llm) : null;
 
 // ---------------------------------------------------------------- Slack + local HTTP
+const sender = config.OTS_TEST_INBOX
+  ? new GmailSender({
+      bin: config.BSK_BIN,
+      runner,
+      inbox: parseTestInbox(config.OTS_TEST_INBOX),
+      videoUrl: LAUNCH_VIDEO_URL,
+    })
+  : undefined;
+log.info(
+  sender
+    ? `Send: real Gmail, test plus-addresses of ${config.OTS_TEST_INBOX} only`
+    : "Send: demo only (no OTS_TEST_INBOX)",
+);
+
 const { app, state } = createApp({
   config,
+  sender,
   executor,
   extractor,
   drafter,

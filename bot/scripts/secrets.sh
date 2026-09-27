@@ -23,4 +23,6 @@ ots_secret SLACK_CONFIG_REFRESH_TOKEN
 # Optional: QM executor source auth, Memorable service
 ots_secret OTS_QM_SIGNING_SECRET
 ots_secret MEMORABLE_API_KEY
+# Optional: the one inbox real demo sends may reach, as plus-addresses (you+dana@gmail.com)
+ots_secret OTS_TEST_INBOX
 unset -f ots_secret

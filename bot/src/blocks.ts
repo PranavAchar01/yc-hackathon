@@ -332,7 +332,7 @@ export function reviewAllBlocks(drafts: EmailDraft[]): Card {
     blocks: [
       { type: "section", text: md(`*${drafts.length} drafts ready*`) },
       { type: "section", text: md(lines.join("\n")) },
-      context("All recipients are @example.com. Nothing is sent until you press Send."),
+      context("Nothing is sent until you press Send. Real sends go to test addresses only."),
     ],
   };
 }
