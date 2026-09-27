@@ -17,7 +17,7 @@ export interface CommandRecord {
   uses: number;
   lastUsed: Date | null;
   createdAt: Date;
-  /** Where the computer-use agent starts (e.g. https://github.com). Null = the local smoke-test page. */
+  /** Where the computer-use agent starts (e.g. https://github.com). Required for a browser run; null cannot run there. */
   startUrl: string | null;
   /** "slash" once registered as a real /command via apps.manifest.update; "router" means use /do <name>. */
   registered: Registration;

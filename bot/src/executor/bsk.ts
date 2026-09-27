@@ -2,12 +2,10 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
-import { demoDrafts } from "../demo-data.ts";
 import type { LlmProvider, ToolCall, ToolResult, ToolSpec } from "../llm.ts";
 import { log } from "../log.ts";
 import type { CliRunner, MemorableClient, TraceCall } from "../memorable.ts";
-import type { Outbox } from "../mock-site.ts";
-import type { EventSink, Executor, RunResult, RunTask } from "./types.ts";
+import { type EventSink, type Executor, RunRefused, type RunResult, type RunTask } from "./types.ts";
 
 /**
  * BrowserSkill executor: an LLM tool-use loop (OpenAI or Anthropic, see llm.ts) whose tools wrap the `bsk` CLI (checked against bsk 0.3.1
@@ -147,6 +145,16 @@ export function originOf(url: string): string | null {
   }
 }
 
+/** Commands run only on real sites: a run needs an absolute http(s) start URL. */
+export function requireStartUrl(task: RunTask): string {
+  const url = task.startUrl?.trim();
+  if (!url || !/^https?:\/\/[^\s/]+/i.test(url))
+    throw new RunRefused(
+      `/${task.procedure.name} has no real site to start on. Add its start URL, then run it again.`,
+    );
+  return url;
+}
+
 export function systemPrompt(task: RunTask, startUrl: string, recalled: string, now = new Date()): string {
   const p = task.procedure;
   const origin = originOf(startUrl) ?? startUrl;
@@ -178,9 +186,6 @@ export interface BskOptions {
   runner: CliRunner;
   /** Null when no LLM key is configured: the executor reports unhealthy and the guard runs scripted. */
   llm: LlmProvider | null;
-  /** Where a command with no start URL begins: the local smoke-test page. */
-  defaultStartUrl: string;
-  outbox: Outbox;
   memorable: MemorableClient | null;
   memorableScope: string;
   maxTurns?: number;
@@ -213,7 +218,7 @@ export class BskExecutor implements Executor {
   async run(task: RunTask, onEvent: EventSink, signal?: AbortSignal): Promise<RunResult> {
     const started = Date.now();
     const p = task.procedure;
-    const startUrl = task.startUrl || this.o.defaultStartUrl;
+    const startUrl = requireStartUrl(task);
     const recalled = this.o.memorable ? await this.o.memorable.recall(p.title).catch(() => "") : "";
 
     const startRes = await this.bsk([
@@ -321,10 +326,9 @@ export class BskExecutor implements Executor {
         .recordTrace(`${p.title}: ${p.description}`, actions, this.o.memorableScope, `${p.name}-bsk`)
         .then((m) => log.info(`bsk run recorded: ${m.detail}`));
     }
-    const queued = this.o.outbox.since(started);
     return {
       elapsedMs: Date.now() - started,
-      drafts: queued.length > 0 ? queued : p.name === "gtm" ? demoDrafts(p.teacher) : [],
+      drafts: [],
       summary,
       executedBy: "bsk",
       framesDir: shots,

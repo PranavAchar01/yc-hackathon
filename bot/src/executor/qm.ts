@@ -1,7 +1,6 @@
 import { createHmac } from "node:crypto";
 import { z } from "zod";
-import { demoDrafts, type EmailDraft } from "../demo-data.ts";
-import { log } from "../log.ts";
+import type { EmailDraft } from "../demo-data.ts";
 import type { EventSink, Executor, RunResult, RunTask } from "./types.ts";
 
 /**
@@ -150,13 +149,9 @@ export class QmExecutor implements Executor {
         ...(r?.note ? { note: r.note } : {}),
       });
     }
-    let drafts: EmailDraft[] = (report?.drafts ?? []).filter((d) =>
+    const drafts: EmailDraft[] = (report?.drafts ?? []).filter((d) =>
       d.to.toLowerCase().endsWith("@example.com"),
     );
-    if (drafts.length === 0) {
-      log.warn("QM returned no @example.com drafts; showing the fictional demo drafts instead");
-      drafts = demoDrafts(task.procedure.teacher);
-    }
     return { elapsedMs: Date.now() - started, drafts, summary: reply, executedBy: "qm" };
   }
 }

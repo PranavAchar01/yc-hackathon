@@ -21,7 +21,6 @@ import type { CommandLibrary } from "./library/types.ts";
 import { AnthropicProvider, chooseProvider, type LlmProvider, OpenAIProvider } from "./llm.ts";
 import { log } from "./log.ts";
 import { defaultRunner, MemorableClient } from "./memorable.ts";
-import { Outbox } from "./mock-site.ts";
 import { Publisher } from "./publish.ts";
 import { CommandRegistrar, SlackManifestApi } from "./registrar.ts";
 import { CommandSearch, GBrainIndex } from "./search.ts";
@@ -131,7 +130,6 @@ const publisher = new Publisher({
 });
 
 // ---------------------------------------------------------------- executors
-const outbox = new Outbox();
 const scripted = new ScriptedExecutor(undefined, config.OTS_SCRIPTED_SPEED);
 function primaryExecutor(): CheckedExecutor | null {
   if (config.OTS_EXECUTOR === "bsk")
@@ -139,8 +137,6 @@ function primaryExecutor(): CheckedExecutor | null {
       bin: config.BSK_BIN,
       runner,
       llm: agentLlm ?? llm,
-      defaultStartUrl: config.OTS_MOCK_URL,
-      outbox,
       memorable,
       memorableScope: config.OTS_MEMORABLE_SCOPE,
       timeoutMs: config.BSK_TIMEOUT_MS,
@@ -251,11 +247,9 @@ async function health(): Promise<HealthLine[]> {
   ];
 }
 
-const server = createApiServer({ library, search, outbox, health });
+const server = createApiServer({ library, search, health });
 server.listen(config.OTS_API_PORT, config.OTS_API_HOST, () =>
-  log.info(
-    `local API on http://${config.OTS_API_HOST}:${config.OTS_API_PORT} (/api/commands, /api/health, /mock/)`,
-  ),
+  log.info(`local API on http://${config.OTS_API_HOST}:${config.OTS_API_PORT} (/api/commands, /api/health)`),
 );
 
 await app.start();

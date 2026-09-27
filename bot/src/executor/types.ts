@@ -34,6 +34,14 @@ export interface RunResult {
   framesDir?: string;
 }
 
+/**
+ * The run cannot start for a reason no fallback can fix (for example the command has no real start URL).
+ * The resilient executor rethrows it instead of finishing on the scripted executor, so the card says why.
+ */
+export class RunRefused extends Error {
+  override readonly name = "RunRefused";
+}
+
 export type EventSink = (event: ExecEvent) => void | Promise<void>;
 
 /** Runs a learned procedure and reports step progress. Implementations must never send email. */
