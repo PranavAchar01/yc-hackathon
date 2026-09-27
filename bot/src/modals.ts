@@ -18,14 +18,16 @@ export const CALLBACKS = {
   saveShortcut: "ots_save_as_command",
 } as const;
 
-export type SheetMode = "teach" | "new" | "save";
+export type SheetMode = "teach" | "new" | "save" | "learn";
 
 /** Carried through the modal in private_metadata (max 3000 chars). */
 export const MetaSchema = z.object({
-  mode: z.enum(["teach", "new", "save"]),
+  mode: z.enum(["teach", "new", "save", "learn"]),
   channel: z.string().optional(),
   cardTs: z.string().optional(),
   frames: z.number().int().optional(),
+  /** /learn: the real site the video showed, carried to the library row. */
+  startUrl: z.string().max(1000).optional(),
 });
 export type SheetMeta = z.infer<typeof MetaSchema>;
 
@@ -33,6 +35,7 @@ const TITLES: Record<SheetMode, string> = {
   teach: "Here's what I learned",
   new: "New command",
   save: "Save as command",
+  learn: "Here's what I learned",
 };
 
 const plain = (text: string) => ({ type: "plain_text" as const, text, emoji: true });
@@ -54,7 +57,9 @@ export function publishModal(draft: Draft, meta: SheetMeta): View {
   const intro =
     meta.mode === "teach"
       ? `${draft.steps.length} steps from 1 demonstration${meta.frames ? `, ${meta.frames} frames` : ""}. Fix anything that looks off, then publish.`
-      : "Fix anything that looks off, then publish.";
+      : meta.mode === "learn"
+        ? `${draft.steps.length} steps from the video${meta.frames ? `, ${meta.frames} frames` : ""}. ${meta.startUrl ? `Starts at ${meta.startUrl}.` : "No real site found in the video, so it cannot run in the browser yet."} Fix anything that looks off, then publish.`
+        : "Fix anything that looks off, then publish.";
   const blocks: KnownBlock[] = [
     { type: "context", elements: [{ type: "mrkdwn", text: intro }] },
     {

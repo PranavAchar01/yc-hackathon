@@ -46,6 +46,11 @@ const EnvSchema = z.object({
   OTS_API_PORT: z.coerce.number().int().positive().default(3977),
   OTS_MOCK_URL: z.string().default("http://127.0.0.1:3977/mock/"),
 
+  // /learn: video download and frame sampling
+  YTDLP_BIN: z.string().default("yt-dlp"),
+  FFMPEG_BIN: z.string().default("ffmpeg"),
+  FFPROBE_BIN: z.string().default("ffprobe"),
+
   OTS_SKILLS_DIR: z.string().optional(),
   OTS_REQUESTER: z.string().default("Priya"),
   // Real sends go ONLY to plus-addresses of this inbox (Keychain OTS_TEST_INBOX). Unset = Send is demo-only.

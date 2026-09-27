@@ -13,6 +13,7 @@ import { ScriptedExecutor } from "./executor/scripted.ts";
 import { type CheckedExecutor, ResilientExecutor } from "./executor/select.ts";
 import { LlmStepExtractor } from "./extract.ts";
 import { GmailSender, parseTestInbox } from "./gmail-send.ts";
+import { VideoLearner } from "./learn.ts";
 import { MemoryLibrary } from "./library/memory.ts";
 import { PgLibrary } from "./library/pg.ts";
 import { seedIfEmpty, syncRealSiteCommands } from "./library/seed.ts";
@@ -154,6 +155,14 @@ const executor = new ResilientExecutor(primary, scripted, () => config.OTS_FORCE
 
 const extractor = llm ? new LlmStepExtractor(llm) : null;
 const drafter = llm ? new LlmDrafter(llm) : null;
+// Downloads can take a while; give yt-dlp and ffmpeg 15 minutes.
+const learner = llm
+  ? new VideoLearner(llm, defaultRunner(process.env, 15 * 60_000), {
+      ytdlp: config.YTDLP_BIN,
+      ffmpeg: config.FFMPEG_BIN,
+      ffprobe: config.FFPROBE_BIN,
+    })
+  : null;
 
 // ---------------------------------------------------------------- Slack + local HTTP
 const sender = config.OTS_TEST_INBOX
@@ -191,6 +200,7 @@ const { app, state } = createApp({
   executor,
   extractor,
   drafter,
+  learner,
   library,
   search,
   publisher,

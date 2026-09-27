@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { basename } from "node:path";
 import {
   App,
@@ -15,6 +15,8 @@ import {
   ACTIONS,
   type Card,
   firstName,
+  LEARN_THUMBS,
+  learnWatchingCard,
   notFoundCard,
   procedureBlocks,
   type RunView,
@@ -36,6 +38,7 @@ import type { StepExtractor } from "./extract.ts";
 import { MAX_FRAMES, subsample } from "./extract.ts";
 import type { GmailSender } from "./gmail-send.ts";
 import { commandsMessage, HOME_SEARCH, homeView, publishedMessage } from "./home.ts";
+import { parseVideoUrl, type VideoLearner } from "./learn.ts";
 import { type CommandLibrary, type CommandRecord, canSee, invocation } from "./library/types.ts";
 import { log } from "./log.ts";
 import {
@@ -67,12 +70,14 @@ export interface Deps {
   liveUrl?: string;
   /** Real Gmail sends to test plus-addresses. Absent = Send is demo-only. */
   sender?: GmailSender;
+  /** /learn: video link to command. Null when no LLM key is configured. */
+  learner?: VideoLearner | null;
   /** Turn a run's screenshots into the command's library video (background, best effort). */
   publishVideo?: (command: string, framesDir: string) => Promise<void>;
 }
 
 /** Commands this app handles itself. Everything else that reaches us is a published command. */
-export const FIXED_COMMANDS = ["teach", "new", "do", "ots", "commands"] as const;
+export const FIXED_COMMANDS = ["teach", "new", "do", "ots", "commands", "learn"] as const;
 export const DYNAMIC_COMMAND = new RegExp(`^/(?!(?:${FIXED_COMMANDS.join("|")})$)[a-z0-9][a-z0-9_-]*$`);
 const OPEN_SHEET = "ots_open_sheet";
 
@@ -93,7 +98,9 @@ class LiveCard {
         // A just-uploaded screenshot is not usable until Slack finishes processing it, and Slack then rejects
         // the whole card (invalid_blocks). The step ticks matter more: resend without the image; the next
         // update shows it once it is ready.
-        const withoutImage = card.blocks.filter((b) => b.type !== "image");
+        const withoutImage = card.blocks.filter(
+          (b) => b.type !== "image" && !(b.type === "context" && b.elements.some((e) => e.type === "image")),
+        );
         if (withoutImage.length !== card.blocks.length && /invalid_blocks/.test(String(err))) {
           await this.send(withoutImage, card.text).catch((e: unknown) =>
             log.warn("chat.update failed", e instanceof Error ? e.message : e),
@@ -348,6 +355,101 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     await client.views.open({ trigger_id: body.trigger_id, view: publishModal(pending.draft, pending.meta) });
   });
 
+  // ================================================================ /learn <video url>
+  app.command("/learn", async ({ command, ack, respond, client }) => {
+    await ack();
+    const check = parseVideoUrl(command.text);
+    if (!check.ok) {
+      await respond({ response_type: "ephemeral", text: check.reason });
+      return;
+    }
+    if (!deps.learner) {
+      await respond({
+        response_type: "ephemeral",
+        text: "No LLM key: add OPENAI_API_KEY (or ANTHROPIC_API_KEY) to Keychain.",
+      });
+      return;
+    }
+    const url = check.url.toString();
+    const state = {
+      url,
+      phase: "downloading" as Parameters<typeof learnWatchingCard>[0]["phase"],
+      frames: 0,
+      transcript: false,
+      thumbFileIds: [] as string[],
+      steps: [] as string[],
+    };
+    const card = await postCard(client, command.channel_id, learnWatchingCard(state), respond);
+    if (!card) return;
+    const show = () => card.update(learnWatchingCard(state));
+    let dir: string | undefined;
+    try {
+      const out = await deps.learner.learn(check.url, async (p) => {
+        if (p.phase === "done") return;
+        state.phase = p.phase;
+        if (p.frames) state.frames = p.frames.length;
+        if (p.transcript) state.transcript = true;
+        await show();
+        if (p.phase === "reading" && p.frames) {
+          // Thumbnail strip: a few evenly spaced frames, added one by one as Slack accepts them.
+          for (const f of subsample(p.frames, LEARN_THUMBS)) {
+            const up = await client.files
+              .uploadV2({ file: await readFile(f), filename: basename(f), title: "Frame" })
+              .catch(() => null);
+            const id = up ? firstUploadedFileId(up) : undefined;
+            if (id) {
+              state.thumbFileIds.push(id);
+              await show();
+            }
+          }
+          state.phase = "writing";
+          await show();
+        }
+      });
+      dir = out.dir;
+      const x = out.learned;
+      // Steps land one at a time, calmly.
+      for (const s of x.steps) {
+        state.steps.push(s);
+        await show();
+        await new Promise((r) => setTimeout(r, 350));
+      }
+      const draft: Draft = {
+        name: x.name,
+        title: x.title,
+        description: x.description,
+        emoji: suggestEmoji(`${x.title} ${x.description}`),
+        steps: x.steps,
+      };
+      const meta: SheetMeta = {
+        mode: "learn",
+        channel: command.channel_id,
+        cardTs: card.ts,
+        frames: out.frames.length,
+        ...(x.startUrl ? { startUrl: x.startUrl } : {}),
+      };
+      const draftId = randomUUID();
+      pendingDrafts.set(draftId, { draft, meta });
+      cards.set(card.ts, card);
+      await card.update(
+        teachReviewCard({
+          title: x.title,
+          steps: x.steps.length,
+          draftId,
+          actionId: OPEN_SHEET,
+          source: "the video",
+        }),
+      );
+      log.info(`learn: ${x.name} from ${url} (${x.steps.length} steps, start ${x.startUrl ?? "none"})`);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      log.error(`learn from ${url} failed:`, reason);
+      await card.update(teachFailedCard({ skill: "learn", reason }));
+    } finally {
+      if (dir) await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+    }
+  });
+
   // ================================================================ /new [sentence]
   async function draftInto(
     client: WebClient,
@@ -426,7 +528,12 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     const m: SheetMeta = metaParsed.success ? metaParsed.data : { mode: "new" };
     const author = { id: body.user.id, name: displayNameFromHandle(body.user.name || body.user.id) };
     try {
-      const out = await deps.publisher.publish({ ...parsed.data, channelId: m.channel ?? null, author });
+      const out = await deps.publisher.publish({
+        ...parsed.data,
+        channelId: m.channel ?? null,
+        author,
+        ...(m.startUrl ? { startUrl: m.startUrl } : {}),
+      });
       const msg = publishedMessage(out.command, out);
       if (m.channel)
         await client.chat
@@ -434,7 +541,7 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
           .catch(() => undefined);
       else await client.chat.postMessage({ channel: body.user.id, ...msg });
       const card = m.cardTs ? cards.get(m.cardTs) : undefined;
-      if (m.mode === "teach" && card) {
+      if ((m.mode === "teach" || m.mode === "learn") && card) {
         await card.update(
           teachLearnedCard({
             procedure: toProcedure(out.command),

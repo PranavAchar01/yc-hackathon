@@ -23,6 +23,10 @@ features:
       description: Watch me do a task once, then turn it into a command
       usage_hint: "[name]"
       should_escape: false
+    - command: /learn
+      description: Learn a command from a screen recording (YouTube, Loom or .mp4 link)
+      usage_hint: "<video link>"
+      should_escape: false
     - command: /new
       description: Describe a command in one sentence
       usage_hint: "[what it should do]"

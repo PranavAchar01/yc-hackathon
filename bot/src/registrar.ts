@@ -58,6 +58,7 @@ export const RESERVED = new Set([
   "poll",
   "help",
   "teach",
+  "learn",
   "new",
   "do",
   "ots",
