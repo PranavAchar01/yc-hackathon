@@ -108,7 +108,7 @@ export class MemorableClient {
     return this.recordTrace(`${p.title}: ${p.description}`, toolCalls, scope, p.name);
   }
 
-  /** Record one executed run (e.g. every Cua run's computer actions) so the next run can recall it. */
+  /** Record one executed run (e.g. every browser run's actions) so the next run can recall it. */
   async recordTrace(
     prompt: string,
     toolCalls: TraceCall[],

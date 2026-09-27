@@ -18,16 +18,16 @@ const EnvSchema = z.object({
   // Claude (Keychain: ANTHROPIC_API_KEY)
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
 
-  OTS_EXECUTOR: z.enum(["cua", "qm", "scripted"]).default("scripted"),
+  OTS_EXECUTOR: z.enum(["bsk", "qm", "scripted"]).default("scripted"),
   OTS_FORCE_SCRIPTED: flag(false),
   OTS_SCRIPTED_SPEED: z.coerce.number().positive().default(1),
 
   OTS_QM_URL: z.url().default("http://localhost:8080"),
   OTS_QM_SIGNING_SECRET: z.string().optional(),
 
-  CUA_CONTAINER: z.string().default("ots-cua"),
-  CUA_TIMEOUT_MS: z.coerce.number().int().positive().default(240_000),
-  CUA_LIVE_URL: z.string().optional(),
+  BSK_BIN: z.string().default(`${process.env.HOME ?? ""}/.local/bin/bsk`),
+  BSK_TIMEOUT_MS: z.coerce.number().int().positive().default(300_000),
+  BSK_EFFORT: z.enum(["low", "medium", "high"]).default("medium"),
 
   OTS_DATABASE_URL: z.string().default("postgres://ots:ots@127.0.0.1:5544/ots"),
   OTS_LIBRARY: z.enum(["postgres", "memory"]).default("postgres"),
@@ -39,7 +39,7 @@ const EnvSchema = z.object({
 
   OTS_API_HOST: z.string().default("127.0.0.1"),
   OTS_API_PORT: z.coerce.number().int().positive().default(3977),
-  OTS_MOCK_URL: z.string().default("http://host.docker.internal:3977/mock/"),
+  OTS_MOCK_URL: z.string().default("http://127.0.0.1:3977/mock/"),
 
   OTS_SKILLS_DIR: z.string().optional(),
   OTS_REQUESTER: z.string().default("Priya"),

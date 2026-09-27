@@ -5,9 +5,9 @@ One line: you do a task once while it watches; it becomes procedural memory (Mem
 ## Stack
 - QM (yc-software/qm): Slack-native agent harness. Memorable is a built-in QM memory provider (`type: "memorable"`: `memorable record` on capture, `memorable inject` on recall). So QM + Memorable is config, not glue.
 - Memorable (memorable.sh, `npx memorable-cli@latest`): procedural memory for computer-use agents. It records step traces and replays them (`memorable recall` / `show`). It does not do the clicking.
-- Cua (github.com/trycua/cua, MIT): does the clicking. A Claude computer-use model drives a local Docker Linux desktop (`trycua/cua-ubuntu`, persistent browser profile), with the procedure's steps as guidance. Every Cua run is recorded to Memorable and the recalled procedure is fed back in on the next run.
+- BrowserSkill (`bsk`): does the clicking, in Pranav's real logged-in Chrome through an Agent Window (consent prompt before it takes control). A Claude tool-use loop (`claude-opus-5-5`) calls bsk snapshot/click/fill/navigate, with the procedure's steps and the Memorable recall as guidance. Every run is recorded back to Memorable. (Replaced Cua on 09-24: no Docker desktop, no image pull.)
 - Slack (and QM) are the front door: slash commands, run cards with live screenshots, the command library.
-- Our layer: `/teach [name]` records a human demonstration (screen frames + a vision model to steps) and publishes it as a command (library row, QM skill, GBrain page, Memorable procedure, real slash command); `/gtm` (and generally `/<command>`) replays it through Cua with a clean Block Kit UI. Scripted executor stays as the stage-safe fallback (`OTS_EXECUTOR=cua|qm|scripted`).
+- Our layer: `/teach [name]` records a human demonstration (screen frames + a vision model to steps) and publishes it as a command (library row, QM skill, GBrain page, Memorable procedure, real slash command); `/gtm` (and generally `/<command>`) replays it through BrowserSkill with a clean Block Kit UI. Scripted executor stays as the stage-safe fallback (`OTS_EXECUTOR=bsk|qm|scripted`).
 
 ## Demo storyboard (single source of truth for site + bot copy)
 Workspace "Northwind" (fictional), channel `#launch`.

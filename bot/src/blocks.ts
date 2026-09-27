@@ -245,7 +245,7 @@ export function runCard(v: RunView): Card {
     { type: "section", text: md(`${mark}  *${esc(p.title)}*`) },
     { type: "section", text: md(stepLines(p, v.steps, v.notes)) },
   ];
-  // Live sandbox view while a computer-use run is going (Cua). Scripted runs never set these.
+  // Live sandbox view while a computer-use run is going (BrowserSkill). Scripted runs never set these.
   if (v.phase === "running" && v.liveImageFileId) {
     blocks.push({
       type: "image",

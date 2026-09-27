@@ -61,7 +61,7 @@ export interface Deps {
   library: CommandLibrary;
   search: CommandSearch;
   publisher: Publisher;
-  /** Optional link to watch the sandbox live (noVNC), shown on Cua runs. */
+  /** Optional link to watch the run live, shown on browser runs. */
   liveUrl?: string;
 }
 

@@ -2,10 +2,10 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { demoDrafts, type EmailDraft, LAUNCH_VIDEO_URL } from "./demo-data.ts";
 
 /**
- * Local fake pages the Cua agent works in, so the demo task has zero network dependencies:
+ * Local fake pages the browser agent can work in (smoke test), so the demo task has zero network dependencies:
  * an inbox with Priya's forwarded deliverables, the contacts sheet, the one-pagers and a compose
  * form whose "Queue for review" button stores drafts in memory. Nothing here can send email.
- * Served by the bot's HTTP server under /mock/ (the sandbox reaches it via host.docker.internal).
+ * Served by the bot's HTTP server under /mock/ (http://127.0.0.1:3977/mock/ in the real Chrome).
  */
 
 export class Outbox {

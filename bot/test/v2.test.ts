@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { publicCommand } from "../src/api.ts";
 import { DYNAMIC_COMMAND, firstUploadedFileId } from "../src/app.ts";
 import { normalizeDraft, suggestEmoji, suggestName } from "../src/draft.ts";
-import { parseRunnerLine, stepsDone } from "../src/executor/cua.ts";
 import { ScriptedExecutor } from "../src/executor/scripted.ts";
 import { type CheckedExecutor, ResilientExecutor } from "../src/executor/select.ts";
 import type { RunResult, RunTask } from "../src/executor/types.ts";
@@ -302,29 +301,6 @@ describe("search", () => {
   });
 });
 
-describe("Cua runner protocol", () => {
-  it("parses JSON lines and ignores noise", () => {
-    expect(parseRunnerLine('{"type": "screenshot", "path": "/tmp/a.png"}')).toEqual({
-      type: "screenshot",
-      path: "/tmp/a.png",
-    });
-    expect(parseRunnerLine("INFO starting container")).toBeNull();
-    expect(parseRunnerLine('{"type": "weird"}')).toBeNull();
-    expect(
-      parseRunnerLine('{"type": "done", "summary": "ok", "actions": [{"name": "click", "input": {"x": 1}}]}'),
-    ).toEqual({
-      type: "done",
-      summary: "ok",
-      actions: [{ name: "click", input: { x: 1 } }],
-    });
-  });
-
-  it("reads STEP n DONE markers", () => {
-    expect(stepsDone("STEP 1 DONE. Now step 2. step 2 done")).toEqual([0, 1]);
-    expect(stepsDone("nothing")).toEqual([]);
-  });
-});
-
 describe("ResilientExecutor (stage safety)", () => {
   const task: RunTask = {
     procedure: {
@@ -341,11 +317,11 @@ describe("ResilientExecutor (stage safety)", () => {
   };
   const scripted = new ScriptedExecutor(async () => {});
   const primary = (healthy: boolean, run: () => Promise<RunResult>): CheckedExecutor => ({
-    name: "cua",
+    name: "bsk",
     healthy: async () => healthy,
     run,
   });
-  const ok: RunResult = { elapsedMs: 1, drafts: [], executedBy: "cua" };
+  const ok: RunResult = { elapsedMs: 1, drafts: [], executedBy: "bsk" };
 
   it("uses the primary when healthy", async () => {
     expect(
@@ -356,7 +332,7 @@ describe("ResilientExecutor (stage safety)", () => {
           () => false,
         ).run(task, () => {})
       ).executedBy,
-    ).toBe("cua");
+    ).toBe("bsk");
   });
 
   it("silently uses scripted when red, forced, or failing mid-run", async () => {

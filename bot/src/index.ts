@@ -6,7 +6,7 @@ import { createApiServer, type HealthLine } from "./api.ts";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 import { ClaudeDrafter } from "./draft.ts";
-import { CuaExecutor } from "./executor/cua.ts";
+import { BskExecutor } from "./executor/bsk.ts";
 import { QmExecutor } from "./executor/qm.ts";
 import { ScriptedExecutor } from "./executor/scripted.ts";
 import { type CheckedExecutor, ResilientExecutor } from "./executor/select.ts";
@@ -103,20 +103,18 @@ const publisher = new Publisher({
 // ---------------------------------------------------------------- executors
 const outbox = new Outbox();
 const scripted = new ScriptedExecutor(undefined, config.OTS_SCRIPTED_SPEED);
-const cuaStorage = join(config.botRoot, ".sandbox", "storage");
 function primaryExecutor(): CheckedExecutor | null {
-  if (config.OTS_EXECUTOR === "cua")
-    return new CuaExecutor({
-      runnerPath: join(config.botRoot, "cua", "runner.py"),
-      startUrl: config.OTS_MOCK_URL,
-      container: config.CUA_CONTAINER,
-      storageDir: cuaStorage,
-      env: process.env,
+  if (config.OTS_EXECUTOR === "bsk")
+    return new BskExecutor({
+      bin: config.BSK_BIN,
+      runner,
+      apiKey: config.ANTHROPIC_API_KEY,
+      defaultStartUrl: config.OTS_MOCK_URL,
       outbox,
       memorable,
       memorableScope: config.OTS_MEMORABLE_SCOPE,
-      runner,
-      timeoutMs: config.CUA_TIMEOUT_MS,
+      timeoutMs: config.BSK_TIMEOUT_MS,
+      effort: config.BSK_EFFORT,
     });
   if (config.OTS_EXECUTOR === "qm") return new QmExecutor(config.OTS_QM_URL, config.OTS_QM_SIGNING_SECRET);
   return null;
@@ -138,7 +136,6 @@ const { app, state } = createApp({
   library,
   search,
   publisher,
-  ...(config.CUA_LIVE_URL ? { liveUrl: config.CUA_LIVE_URL } : {}),
 });
 
 async function health(): Promise<HealthLine[]> {

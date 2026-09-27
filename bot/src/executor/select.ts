@@ -7,7 +7,7 @@ export interface CheckedExecutor extends Executor {
 }
 
 /**
- * Stage safety: use the primary (cua or qm) only when its health check is green and OTS_FORCE_SCRIPTED
+ * Stage safety: use the primary (bsk or qm) only when its health check is green and OTS_FORCE_SCRIPTED
  * is off; otherwise, or if it fails before finishing, run the scripted executor with the same card UI.
  * The fallback is silent on screen by design and only logged.
  */

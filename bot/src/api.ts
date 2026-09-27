@@ -40,7 +40,7 @@ export interface ApiDeps {
  * Small local HTTP server:
  *   GET /api/commands?q=&limit=   read-only library for the website (CORS open, GET only)
  *   GET /api/health               one line per service, used by `pnpm stage`
- *   /mock/*                       the fake inbox, sheet and compose pages the Cua agent works in
+ *   /mock/*                       the fake inbox, sheet and compose pages the browser agent can work in (smoke test)
  */
 export function createApiServer(deps: ApiDeps): Server {
   return createServer((req, res) => {

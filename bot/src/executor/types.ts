@@ -35,7 +35,7 @@ export interface RunResult {
 export type EventSink = (event: ExecEvent) => void | Promise<void>;
 
 /** Runs a learned procedure and reports step progress. Implementations must never send email. */
-export type ExecutorName = "scripted" | "qm" | "cua";
+export type ExecutorName = "scripted" | "qm" | "bsk";
 
 export interface Executor {
   readonly name: ExecutorName;
