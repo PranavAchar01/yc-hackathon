@@ -170,6 +170,7 @@ export class OpenAIProvider implements LlmProvider {
           input,
           tools,
           tool_choice: "auto",
+          parallel_tool_calls: true,
           reasoning: { effort: o.effort ?? "low" },
           max_output_tokens: 16000,
           store: false,
