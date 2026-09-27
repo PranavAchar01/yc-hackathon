@@ -89,6 +89,23 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 .tech .f{font-size:23px;color:var(--ink2);margin-top:12px;line-height:1.38;font-weight:500}
 .tech .f b{color:var(--ink);font-weight:650;font-weight:600}
 
+
+/* footage scenes: Slack on the left, the agent browser "in the cloud" on the right */
+.run2{position:absolute;inset:0;padding:120px 70px 110px;display:grid;grid-template-columns:0.82fr 1.18fr;gap:34px}
+.win{position:relative;border-radius:26px;overflow:hidden;background:#fff;box-shadow:var(--shadow-lg);display:flex;flex-direction:column}
+.win .tb{height:52px;flex:none;display:flex;align-items:center;gap:10px;padding:0 20px;font-size:19px;font-weight:600;color:var(--ink2);border-bottom:1px solid var(--line);background:rgba(255,255,255,.9)}
+.win .tb .l{display:flex;gap:8px;margin-right:8px}.win .tb .l i{width:13px;height:13px;border-radius:50%;background:#e5e5ea}
+.win .tb .live{margin-left:auto;display:flex;align-items:center;gap:8px;color:#e01e5a;font-size:17px;font-weight:700;letter-spacing:.04em}
+.win .tb .live i{width:10px;height:10px;border-radius:50%;background:#e01e5a}
+.win video{flex:1;width:100%;height:100%;object-fit:cover;object-position:top left;background:#fff}
+.win.agent{box-shadow:0 0 0 1px rgba(0,113,227,.25),0 30px 90px rgba(0,113,227,.22)}
+.win.agent .tb{background:linear-gradient(90deg,rgba(0,113,227,.08),rgba(255,255,255,.9))}
+.chips{position:absolute;left:70px;right:70px;top:40px;display:flex;gap:14px;align-items:center}
+.chips .pill{font-size:22px}
+.chips .speed{margin-left:auto;font-size:20px;color:var(--ink2)}
+.cap{position:absolute;left:0;right:0;bottom:34px;text-align:center;font-size:34px;font-weight:650;font-weight:600;letter-spacing:-.015em}
+.cap em{font-style:normal;color:var(--accent)}
+
 /* S8 close */
 .url{margin-top:54px;font-size:30px;font-weight:600;color:var(--accent)}
 </style>
@@ -184,6 +201,22 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 
 <script>
 (() => {
+
+  // Footage scenes are built from film/deck/media/<name>.json + <name>-slack.mp4 + <name>-agent.mp4.
+  window.runScene = function (name, opt) {
+    const sec = document.createElement("section");
+    sec.className = "scene"; sec.id = "s-" + name;
+    sec.innerHTML = `
+      <div class="chips">${opt.chips.map(([t, c]) => `<span class="pill glass"><span class="dot" style="background:${c}"></span>${t}</span>`).join("")}<span class="pill glass speed">${opt.speedLabel}</span></div>
+      <div class="run2">
+        <div class="win"><div class="tb"><span class="l"><i></i><i></i><i></i></span>Slack · ${opt.channel}</div><video muted playsinline preload="auto" src="media/${name}-slack.mp4"></video></div>
+        <div class="win agent"><div class="tb"><span class="l"><i></i><i></i><i></i></span>☁︎ Agent cloud · worker 01 · ${opt.site}<span class="live"><i></i>LIVE</span></div><video muted playsinline preload="auto" src="media/${name}-agent.mp4"></video></div>
+      </div>
+      <div class="cap"></div>`;
+    document.body.insertBefore(sec, document.querySelector("script"));
+    sec._caps = opt.caps; sec._clipStart = opt.clipStart || 0;
+    return sec;
+  };
   const OUT = (p) => 1 - Math.pow(1 - p, 3);
   const cl = (x) => Math.max(0, Math.min(1, x));
   const XF = 0.6;              // crossfade between scenes

@@ -162,8 +162,10 @@ export function teachReviewCard(input: {
   steps: number;
   draftId: string;
   actionId: string;
+  /** Where it was learned from; default "1 demonstration". */
+  source?: string;
 }): Card {
-  const line = `Learned ${input.title}. ${input.steps} ${input.steps === 1 ? "step" : "steps"} from 1 demonstration.`;
+  const line = `Learned ${input.title}. ${input.steps} ${input.steps === 1 ? "step" : "steps"} from ${input.source ?? "1 demonstration"}.`;
   return {
     text: line,
     blocks: [
@@ -183,6 +185,63 @@ export function teachReviewCard(input: {
       },
     ],
   };
+}
+
+// ---------------------------------------------------------------- /learn <url>
+
+export type LearnPhase = "downloading" | "sampling" | "reading" | "writing";
+
+const LEARN_STATUS: Record<LearnPhase, string> = {
+  downloading: "Downloading the video",
+  sampling: "Sampling frames",
+  reading: "Reading the frames",
+  writing: "Writing the steps",
+};
+
+/** Thumbnails shown on the card; a context block holds at most 10 elements, one is the label. */
+export const LEARN_THUMBS = 8;
+
+export function learnWatchingCard(input: {
+  url: string;
+  phase: LearnPhase;
+  frames: number;
+  transcript?: boolean;
+  thumbFileIds: string[];
+  steps: string[];
+}): Card {
+  const host = (() => {
+    try {
+      return new URL(input.url).hostname.replace(/^www\./, "");
+    } catch {
+      return "video";
+    }
+  })();
+  const facts = [
+    `<${input.url}|${esc(host)}>`,
+    LEARN_STATUS[input.phase],
+    input.frames ? `${input.frames} frames` : "",
+    input.transcript ? "with transcript" : "",
+  ].filter(Boolean);
+  const blocks: KnownBlock[] = [
+    { type: "section", text: md(`${MARKS.running}  *Watching the tape*`) },
+    context(facts.join("  ·  ")),
+  ];
+  const thumbs = input.thumbFileIds.slice(0, LEARN_THUMBS);
+  if (thumbs.length > 0)
+    blocks.push({
+      type: "context",
+      elements: thumbs.map((id, i) => ({
+        type: "image" as const,
+        slack_file: { id },
+        alt_text: `Frame ${i + 1}`,
+      })),
+    });
+  if (input.steps.length > 0)
+    blocks.push(divider, {
+      type: "section",
+      text: md(input.steps.map((s, i) => `${i + 1}.  ${esc(s)}`).join("\n")),
+    });
+  return { text: "Watching the tape", blocks };
 }
 
 export function teachFailedCard(input: { skill: string; reason: string }): Card {

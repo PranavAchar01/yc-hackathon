@@ -32,7 +32,7 @@ const EnvSchema = z.object({
   OTS_QM_SIGNING_SECRET: z.string().optional(),
 
   BSK_BIN: z.string().default(`${process.env.HOME ?? ""}/.local/bin/bsk`),
-  BSK_TIMEOUT_MS: z.coerce.number().int().positive().default(420_000),
+  BSK_TIMEOUT_MS: z.coerce.number().int().positive().default(900_000),
   BSK_EFFORT: z.enum(["low", "medium", "high"]).default("medium"),
 
   OTS_DATABASE_URL: z.string().default("postgres://ots:ots@127.0.0.1:5544/ots"),
@@ -44,6 +44,11 @@ const EnvSchema = z.object({
 
   OTS_API_HOST: z.string().default("127.0.0.1"),
   OTS_API_PORT: z.coerce.number().int().positive().default(3977),
+
+  // /learn: video download and frame sampling
+  YTDLP_BIN: z.string().default("yt-dlp"),
+  FFMPEG_BIN: z.string().default("ffmpeg"),
+  FFPROBE_BIN: z.string().default("ffprobe"),
 
   OTS_SKILLS_DIR: z.string().optional(),
   OTS_REQUESTER: z.string().default("Priya"),

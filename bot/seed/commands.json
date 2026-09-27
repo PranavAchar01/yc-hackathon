@@ -1,20 +1,95 @@
 {
   "team": [
-    { "key": "priya", "id": "U0NWPRIYA", "name": "Priya Shah", "team": "ops" },
-    { "key": "mark", "id": "U0NWMARK", "name": "Mark Ellis", "team": "gtm" },
-    { "key": "jordan", "id": "U0NWJORDAN", "name": "Jordan Lee", "team": "eng" },
-    { "key": "sofia", "id": "U0NWSOFIA", "name": "Sofia Ruiz", "team": "finance" },
-    { "key": "ben", "id": "U0NWBEN", "name": "Ben Carter", "team": "eng" },
-    { "key": "aisha", "id": "U0NWAISHA", "name": "Aisha Khan", "team": "support" },
-    { "key": "wren", "id": "U0NWWREN", "name": "Wren Ito", "team": "design" },
-    { "key": "carlos", "id": "U0NWCARLOS", "name": "Carlos Nunez", "team": "gtm" },
-    { "key": "dana", "id": "U0NWDANA", "name": "Dana Whitfield", "team": "people" },
-    { "key": "felix", "id": "U0NWFELIX", "name": "Felix Ngata", "team": "ops" },
-    { "key": "hana", "id": "U0NWHANA", "name": "Hana Petrov", "team": "eng" },
-    { "key": "leo", "id": "U0NWLEO", "name": "Leo Marsh", "team": "finance" },
-    { "key": "maya", "id": "U0NWMAYA", "name": "Maya Osei", "team": "support" },
-    { "key": "tariq", "id": "U0NWTARIQ", "name": "Tariq Bello", "team": "design" },
-    { "key": "pranav", "id": "U0PRANAV", "name": "Pranav Achar", "team": "eng" }
+    {
+      "key": "priya",
+      "id": "U0NWPRIYA",
+      "name": "Priya Shah",
+      "team": "ops"
+    },
+    {
+      "key": "mark",
+      "id": "U0NWMARK",
+      "name": "Mark Ellis",
+      "team": "gtm"
+    },
+    {
+      "key": "jordan",
+      "id": "U0NWJORDAN",
+      "name": "Jordan Lee",
+      "team": "eng"
+    },
+    {
+      "key": "sofia",
+      "id": "U0NWSOFIA",
+      "name": "Sofia Ruiz",
+      "team": "finance"
+    },
+    {
+      "key": "ben",
+      "id": "U0NWBEN",
+      "name": "Ben Carter",
+      "team": "eng"
+    },
+    {
+      "key": "aisha",
+      "id": "U0NWAISHA",
+      "name": "Aisha Khan",
+      "team": "support"
+    },
+    {
+      "key": "wren",
+      "id": "U0NWWREN",
+      "name": "Wren Ito",
+      "team": "design"
+    },
+    {
+      "key": "carlos",
+      "id": "U0NWCARLOS",
+      "name": "Carlos Nunez",
+      "team": "gtm"
+    },
+    {
+      "key": "dana",
+      "id": "U0NWDANA",
+      "name": "Dana Whitfield",
+      "team": "people"
+    },
+    {
+      "key": "felix",
+      "id": "U0NWFELIX",
+      "name": "Felix Ngata",
+      "team": "ops"
+    },
+    {
+      "key": "hana",
+      "id": "U0NWHANA",
+      "name": "Hana Petrov",
+      "team": "eng"
+    },
+    {
+      "key": "leo",
+      "id": "U0NWLEO",
+      "name": "Leo Marsh",
+      "team": "finance"
+    },
+    {
+      "key": "maya",
+      "id": "U0NWMAYA",
+      "name": "Maya Osei",
+      "team": "support"
+    },
+    {
+      "key": "tariq",
+      "id": "U0NWTARIQ",
+      "name": "Tariq Bello",
+      "team": "design"
+    },
+    {
+      "key": "pranav",
+      "id": "U0PRANAV",
+      "name": "Pranav Achar",
+      "team": "eng"
+    }
   ],
   "commands": [
     {
@@ -36,7 +111,11 @@
         "Check links and names",
         "Queue for review"
       ],
-      "usage": { "mark": 6, "priya": 4, "sofia": 2 }
+      "usage": {
+        "mark": 6,
+        "priya": 4,
+        "sofia": 2
+      }
     },
     {
       "name": "ship",
@@ -57,27 +136,35 @@
         "Open https://github.com/PranavAchar01/over-the-shoulder/releases/new, type the new tag and choose Create new tag on publish, target main, title it with the tag, and write 2 to 4 short lines of notes from the PR title and diff",
         "Click Publish release, then call finish with the release URL"
       ],
-      "usage": { "pranav": 3, "jordan": 2, "mark": 1 }
+      "usage": {
+        "pranav": 3,
+        "jordan": 2,
+        "mark": 1
+      }
     },
     {
       "name": "standup",
       "title": "Daily standup from GitHub",
-      "description": "Read the last 24 h of commits, PRs and reviews across Pranav's repos and write the standup",
+      "description": "Write the team standup from the last 24 hours of work in the repo",
       "emoji": ":wave:",
       "team": "eng",
       "author": "pranav",
       "visibility": "everyone",
       "registered": "slash",
-      "startUrl": "https://github.com/PranavAchar01?tab=overview",
+      "startUrl": "https://github.com/PranavAchar01/over-the-shoulder/commits/main",
       "steps": [
-        "Read the Contribution activity on the overview page and note everything from the last 24 hours (commits, PRs opened, merged or reviewed, per repo)",
-        "Open https://github.com/PranavAchar01?tab=repositories&sort=updated and note each repo updated in the last 24 hours",
-        "For up to 4 of those repos, open https://github.com/PranavAchar01/<repo>/commits and read the commit messages from the last 24 hours",
-        "Open https://github.com/pulls to see open PRs he authored, and note any with failing checks or waiting on review",
-        "Write the standup in 4 to 6 lines: Yesterday (what shipped), Today (open PRs and the obvious next step), Blockers (failing checks or waiting reviews, else None)",
-        "Call finish with exactly that standup text. Read only: never click a write action"
+        "Open the commit history of main in PranavAchar01/over-the-shoulder",
+        "Read the commits from the last 24 hours",
+        "Open the pull requests tab and note what is open or merged",
+        "Open the issues tab and note anything new or blocked",
+        "Write a 4-line standup: Yesterday, Today, Next, Blockers, about this repo only"
       ],
-      "usage": { "pranav": 9, "jordan": 6, "ben": 4, "hana": 3 }
+      "usage": {
+        "pranav": 9,
+        "jordan": 6,
+        "ben": 4,
+        "hana": 3
+      }
     },
     {
       "name": "triage",
@@ -97,7 +184,11 @@
         "Never close an issue, never assign anyone, never edit a title or body; go back to the list and repeat until no unlabeled open issue is left",
         "Call finish with one line per issue: #number title: labels added (and repro asked when you commented)"
       ],
-      "usage": { "pranav": 4, "ben": 3, "aisha": 2 }
+      "usage": {
+        "pranav": 4,
+        "ben": 3,
+        "aisha": 2
+      }
     },
     {
       "name": "deploys",
@@ -116,7 +207,11 @@
         "Open Build Logs and note any warning lines (none is a valid answer)",
         "Call finish with a 3-line report: status and age, commit, duration and warnings. Read only: never redeploy, promote or change settings"
       ],
-      "usage": { "pranav": 5, "hana": 3, "felix": 2 }
+      "usage": {
+        "pranav": 5,
+        "hana": 3,
+        "felix": 2
+      }
     },
     {
       "name": "bug-triage",
@@ -135,7 +230,11 @@
         "Label duplicates and close them",
         "Post the triage summary for review"
       ],
-      "usage": { "jordan": 15, "ben": 16, "hana": 11 }
+      "usage": {
+        "jordan": 15,
+        "ben": 16,
+        "hana": 11
+      }
     },
     {
       "name": "code-review",
@@ -154,7 +253,10 @@
         "Leave comments on any issues found",
         "Approve or request changes"
       ],
-      "usage": { "jordan": 10, "ben": 8 }
+      "usage": {
+        "jordan": 10,
+        "ben": 8
+      }
     },
     {
       "name": "deploy-check",
@@ -173,7 +275,10 @@
         "Verify feature flags are set correctly",
         "Post the go or no go for review"
       ],
-      "usage": { "ben": 9, "hana": 7 }
+      "usage": {
+        "ben": 9,
+        "hana": 7
+      }
     },
     {
       "name": "incident-postmortem",
@@ -192,7 +297,11 @@
         "Draft the corrective action items",
         "Draft the postmortem summary for review"
       ],
-      "usage": { "jordan": 6, "ben": 5, "mark": 1 }
+      "usage": {
+        "jordan": 6,
+        "ben": 5,
+        "mark": 1
+      }
     },
     {
       "name": "changelog",
@@ -210,7 +319,11 @@
         "Write plain language summaries for each entry",
         "Draft the changelog for review"
       ],
-      "usage": { "jordan": 8, "mark": 3, "sofia": 1 }
+      "usage": {
+        "jordan": 8,
+        "mark": 3,
+        "sofia": 1
+      }
     },
     {
       "name": "oncall-handoff",
@@ -228,7 +341,10 @@
         "Note anything to watch overnight",
         "Draft the handoff note for the next engineer"
       ],
-      "usage": { "hana": 5, "jordan": 4 }
+      "usage": {
+        "hana": 5,
+        "jordan": 4
+      }
     },
     {
       "name": "tech-debt-log",
@@ -246,7 +362,10 @@
         "Rank items by risk and effort",
         "Draft the updated tech debt list for review"
       ],
-      "usage": { "ben": 6, "hana": 3 }
+      "usage": {
+        "ben": 6,
+        "hana": 3
+      }
     },
     {
       "name": "api-docs-sync",
@@ -283,7 +402,10 @@
         "Draft the demo confirmation for review",
         "Add the meeting to the calendar for review"
       ],
-      "usage": { "mark": 7, "carlos": 5 }
+      "usage": {
+        "mark": 7,
+        "carlos": 5
+      }
     },
     {
       "name": "case-study",
@@ -302,7 +424,10 @@
         "Write the case study draft",
         "Send the draft to the customer for review"
       ],
-      "usage": { "carlos": 6, "mark": 2 }
+      "usage": {
+        "carlos": 6,
+        "mark": 2
+      }
     },
     {
       "name": "competitor-scan",
@@ -320,7 +445,9 @@
         "Note any new features or positioning",
         "Draft the competitor scan summary for review"
       ],
-      "usage": { "carlos": 9 }
+      "usage": {
+        "carlos": 9
+      }
     },
     {
       "name": "pricing-quote",
@@ -338,7 +465,10 @@
         "Check for any approved discounts",
         "Draft the quote for review"
       ],
-      "usage": { "mark": 5, "sofia": 2 }
+      "usage": {
+        "mark": 5,
+        "sofia": 2
+      }
     },
     {
       "name": "lead-routing",
@@ -356,7 +486,9 @@
         "Assign each lead to the right rep",
         "Flag any leads missing key details"
       ],
-      "usage": { "carlos": 7 }
+      "usage": {
+        "carlos": 7
+      }
     },
     {
       "name": "webinar-recap",
@@ -374,7 +506,10 @@
         "Draft the recap email for review",
         "Draft the follow up task list"
       ],
-      "usage": { "mark": 4, "carlos": 3 }
+      "usage": {
+        "mark": 4,
+        "carlos": 3
+      }
     },
     {
       "name": "outreach-list",
@@ -392,7 +527,10 @@
         "Check each contact against the suppression list",
         "Draft the outreach list for review"
       ],
-      "usage": { "mark": 8, "carlos": 4 }
+      "usage": {
+        "mark": 8,
+        "carlos": 4
+      }
     },
     {
       "name": "sales-deck",
@@ -410,7 +548,10 @@
         "Check the deck against brand guidelines",
         "Draft the updated deck for review"
       ],
-      "usage": { "carlos": 5, "mark": 3 }
+      "usage": {
+        "carlos": 5,
+        "mark": 3
+      }
     },
     {
       "name": "vendor-check",
@@ -428,7 +569,9 @@
         "Note any service issues this quarter",
         "Draft the vendor review summary for review"
       ],
-      "usage": { "felix": 6 }
+      "usage": {
+        "felix": 6
+      }
     },
     {
       "name": "onboard",
@@ -447,7 +590,11 @@
         "Schedule the first week of meetings",
         "Draft the welcome note for review"
       ],
-      "usage": { "priya": 12, "felix": 6, "dana": 4 }
+      "usage": {
+        "priya": 12,
+        "felix": 6,
+        "dana": 4
+      }
     },
     {
       "name": "offboard",
@@ -465,7 +612,9 @@
         "Collect any company equipment",
         "Draft the offboarding checklist confirmation for review"
       ],
-      "usage": { "felix": 5 }
+      "usage": {
+        "felix": 5
+      }
     },
     {
       "name": "expense-audit",
@@ -483,7 +632,10 @@
         "Check spend against category limits",
         "Draft the audit summary for review"
       ],
-      "usage": { "priya": 6, "sofia": 3 }
+      "usage": {
+        "priya": 6,
+        "sofia": 3
+      }
     },
     {
       "name": "travel-request",
@@ -501,7 +653,10 @@
         "Note the estimated cost",
         "Draft the approval note for review"
       ],
-      "usage": { "felix": 4, "priya": 2 }
+      "usage": {
+        "felix": 4,
+        "priya": 2
+      }
     },
     {
       "name": "supply-order",
@@ -519,7 +674,9 @@
         "Note the preferred vendor for each item",
         "Draft the supply order for review"
       ],
-      "usage": { "felix": 3 }
+      "usage": {
+        "felix": 3
+      }
     },
     {
       "name": "facilities-ticket",
@@ -555,7 +712,10 @@
         "Draft the invoice for review",
         "Log the invoice in the tracker"
       ],
-      "usage": { "sofia": 14, "leo": 10 }
+      "usage": {
+        "sofia": 14,
+        "leo": 10
+      }
     },
     {
       "name": "payroll-check",
@@ -573,7 +733,10 @@
         "Flag any discrepancies",
         "Draft the payroll summary for review"
       ],
-      "usage": { "leo": 9, "sofia": 6 }
+      "usage": {
+        "leo": 9,
+        "sofia": 6
+      }
     },
     {
       "name": "expense",
@@ -591,7 +754,10 @@
         "Flag anything outside policy",
         "Draft the reimbursement summary for review"
       ],
-      "usage": { "sofia": 11, "priya": 5 }
+      "usage": {
+        "sofia": 11,
+        "priya": 5
+      }
     },
     {
       "name": "budget-review",
@@ -609,7 +775,10 @@
         "Flag departments over or under target",
         "Draft the budget review notes for review"
       ],
-      "usage": { "leo": 6, "sofia": 4 }
+      "usage": {
+        "leo": 6,
+        "sofia": 4
+      }
     },
     {
       "name": "renewals",
@@ -627,7 +796,10 @@
         "Note any pricing changes",
         "Draft the renewal recommendation for review"
       ],
-      "usage": { "sofia": 8, "mark": 2 }
+      "usage": {
+        "sofia": 8,
+        "mark": 2
+      }
     },
     {
       "name": "board-update",
@@ -645,7 +817,10 @@
         "Draft the board update slide",
         "Draft the board update notes for review"
       ],
-      "usage": { "leo": 3, "sofia": 2 }
+      "usage": {
+        "leo": 3,
+        "sofia": 2
+      }
     },
     {
       "name": "tax-doc",
@@ -682,7 +857,11 @@
         "Collect feedback after each round",
         "Draft the hiring recommendation for review"
       ],
-      "usage": { "dana": 9, "jordan": 3, "hana": 2 }
+      "usage": {
+        "dana": 9,
+        "jordan": 3,
+        "hana": 2
+      }
     },
     {
       "name": "referral-bonus",
@@ -700,7 +879,10 @@
         "Check the bonus amount against policy",
         "Draft the payout request for review"
       ],
-      "usage": { "dana": 5, "ben": 2 }
+      "usage": {
+        "dana": 5,
+        "ben": 2
+      }
     },
     {
       "name": "benefits-faq",
@@ -718,7 +900,9 @@
         "Draft answers to common questions",
         "Post the FAQ update for review"
       ],
-      "usage": { "dana": 7 }
+      "usage": {
+        "dana": 7
+      }
     },
     {
       "name": "team-survey",
@@ -736,7 +920,10 @@
         "Send the survey for review",
         "Summarize the results once closed"
       ],
-      "usage": { "dana": 4, "priya": 2 }
+      "usage": {
+        "dana": 4,
+        "priya": 2
+      }
     },
     {
       "name": "pto-tracker",
@@ -754,7 +941,10 @@
         "Flag any coverage gaps",
         "Draft the coverage plan for review"
       ],
-      "usage": { "dana": 6, "aisha": 3 }
+      "usage": {
+        "dana": 6,
+        "aisha": 3
+      }
     },
     {
       "name": "culture-pulse",
@@ -790,7 +980,10 @@
         "Check the customer's sentiment in recent replies",
         "Draft the recap for review"
       ],
-      "usage": { "aisha": 13, "maya": 9 }
+      "usage": {
+        "aisha": 13,
+        "maya": 9
+      }
     },
     {
       "name": "churn-save",
@@ -808,7 +1001,11 @@
         "Draft the save offer for review",
         "Log the outcome once the call happens"
       ],
-      "usage": { "maya": 8, "aisha": 6, "mark": 1 }
+      "usage": {
+        "maya": 8,
+        "aisha": 6,
+        "mark": 1
+      }
     },
     {
       "name": "ticket-triage",
@@ -826,7 +1023,10 @@
         "Flag anything needing engineering",
         "Post the triage summary for review"
       ],
-      "usage": { "aisha": 15, "maya": 10 }
+      "usage": {
+        "aisha": 15,
+        "maya": 10
+      }
     },
     {
       "name": "feedback-digest",
@@ -844,7 +1044,10 @@
         "Note the most requested items",
         "Draft the digest for review"
       ],
-      "usage": { "maya": 5, "aisha": 4 }
+      "usage": {
+        "maya": 5,
+        "aisha": 4
+      }
     },
     {
       "name": "sla-check",
@@ -862,7 +1065,10 @@
         "Flag any tickets breaching SLA",
         "Draft the SLA summary for review"
       ],
-      "usage": { "aisha": 6, "maya": 3 }
+      "usage": {
+        "aisha": 6,
+        "maya": 3
+      }
     },
     {
       "name": "escalation",
@@ -899,7 +1105,10 @@
         "Leave comments for the designer",
         "Draft the review summary for review"
       ],
-      "usage": { "wren": 7, "tariq": 5 }
+      "usage": {
+        "wren": 7,
+        "tariq": 5
+      }
     },
     {
       "name": "brand-assets",
@@ -917,7 +1126,11 @@
         "Export the requested formats",
         "Draft the delivery note for review"
       ],
-      "usage": { "tariq": 9, "wren": 4, "mark": 2 }
+      "usage": {
+        "tariq": 9,
+        "wren": 4,
+        "mark": 2
+      }
     },
     {
       "name": "asset-request",
@@ -953,7 +1166,10 @@
         "Note components needing an update",
         "Draft the audit summary for review"
       ],
-      "usage": { "tariq": 6, "wren": 3 }
+      "usage": {
+        "tariq": 6,
+        "wren": 3
+      }
     },
     {
       "name": "user-test",
@@ -972,7 +1188,11 @@
         "Summarize findings by theme",
         "Draft the recommendations for review"
       ],
-      "usage": { "wren": 5, "tariq": 2, "aisha": 1 }
+      "usage": {
+        "wren": 5,
+        "tariq": 2,
+        "aisha": 1
+      }
     }
   ]
 }

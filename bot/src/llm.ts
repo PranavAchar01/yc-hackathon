@@ -88,6 +88,33 @@ function openaiParts(content: Part[]): OpenAI.Chat.ChatCompletionContentPart[] {
   );
 }
 
+/**
+ * Keep a browser agent's context small: every turn re-sends the whole history, so old screenshots and old
+ * page snapshots make each call slower (we measured 1.5 s per call growing to 15 s). Keep the latest
+ * screenshot and the latest few tool outputs whole; older ones become short placeholders. Call ids and
+ * reasoning items are untouched, so the conversation stays valid.
+ */
+export function compactHistory(
+  input: OpenAI.Responses.ResponseInputItem[],
+  keepImages = 1,
+  keepOutputs = 3,
+  maxOld = 300,
+): void {
+  let images = 0;
+  let outputs = 0;
+  for (let i = input.length - 1; i >= 0; i--) {
+    const it = input[i] as unknown as Record<string, unknown>;
+    if (it.type === "function_call_output" && typeof it.output === "string") {
+      if (++outputs > keepOutputs && (it.output as string).length > maxOld)
+        it.output = `${(it.output as string).slice(0, maxOld)}\n[older output trimmed]`;
+    } else if (it.role === "user" && Array.isArray(it.content)) {
+      const parts = it.content as Array<Record<string, unknown>>;
+      if (parts.some((c) => c.type === "input_image") && ++images > keepImages)
+        it.content = [{ type: "input_text", text: "[older screenshot removed]" }];
+    }
+  }
+}
+
 export class OpenAIProvider implements LlmProvider {
   readonly name = "openai" as const;
   private readonly client: OpenAIClient;
@@ -164,6 +191,7 @@ export class OpenAIProvider implements LlmProvider {
     const model = this.model;
     return {
       async next() {
+        compactHistory(input);
         const res = await client.responses.create({
           model,
           instructions: o.system,

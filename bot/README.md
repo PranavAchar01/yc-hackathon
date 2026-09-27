@@ -79,6 +79,7 @@ Checks: `pnpm typecheck`, `pnpm lint` (Biome), `pnpm test` (Vitest; the Postgres
 | Command | What it does |
 | --- | --- |
 | `/teach [name]` | "Watching over your shoulder" card with Stop. Captures the Mac screen every 1.5 s (`screencapture -x`). On Stop, the LLM (vision + structured output, zod-validated) writes the steps and the Publish sheet opens: name, one line, icon, steps, who can use it. |
+| `/learn <video link>` | Learns a command from a screen recording someone already made (YouTube, Loom or a direct .mp4; public http(s) only, 500 MB max). yt-dlp downloads it, ffmpeg samples about one frame every 2 s (40 max), captions become a transcript, and the LLM writes title, name, 4 to 10 steps and the real start URL. The card says "Watching the tape" with a thumbnail strip and the steps as they land, then the same Publish sheet as `/teach` opens. Needs `yt-dlp` and `ffmpeg` (`brew install yt-dlp ffmpeg`). |
 | `/new [sentence]` | One-sentence modal; the LLM drafts name and steps into the same Publish sheet. |
 | Message shortcut **Save as command** | Turns a finished run message into a command via the same sheet. |
 | `/gtm`, `/ship`, any published command | Posts the run card and ticks steps live. |
@@ -156,6 +157,7 @@ Secrets come from Keychain (see above). Everything else has a default:
 | `OTS_WITH_QM` | `0` | `pnpm run stage` also starts QM |
 | `OTS_QM_URL` | `http://localhost:8080` | QM dev instance |
 | `GBRAIN_BIN` / `OTS_GBRAIN` | `~/.bun/bin/gbrain` / `1` | GBrain CLI |
+| `YTDLP_BIN` / `FFMPEG_BIN` / `FFPROBE_BIN` | `yt-dlp` / `ffmpeg` / `ffprobe` | `/learn` tools (on PATH) |
 | `OTS_REQUESTER` | `Priya` | name in "12 emails sent. Priya, done." |
 
 ## Website API
