@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Command Library</title>
+<meta name="description" content="Every command your team has shown once. Search it, run it from Slack.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fbfbfd; --ink:#1d1d1f; --ink2:#6e6e73; --ink3:#86868b; --line:#e5e5ea;
+  --card:#ffffff; --chip:#f2f2f7; --accent:#0071e3; --code:#f4f4f6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#000; --ink:#f5f5f7; --ink2:#a1a1a6; --ink3:#86868b; --line:#2c2c2e;
+    --card:#1c1c1e; --chip:#2c2c2e; --accent:#2997ff; --code:#222529;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#000; --ink:#f5f5f7; --ink2:#a1a1a6; --ink3:#86868b; --line:#2c2c2e;
+  --card:#1c1c1e; --chip:#2c2c2e; --accent:#2997ff; --code:#222529;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px}
+nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0;font-size:14px;color:var(--ink2)}
+nav b{color:var(--ink);font-weight:700}
+header{padding:56px 0 28px}
+h1{font-size:clamp(38px,7vw,60px);font-weight:800;letter-spacing:-.04em;line-height:1.04}
+.sub{font-size:19px;color:var(--ink2);margin-top:14px;line-height:1.45;font-weight:500}
+.stats{margin-top:18px;font-size:14px;color:var(--ink3)}
+.search{position:sticky;top:0;background:var(--bg);padding:14px 0 16px;z-index:2}
+.search input{width:100%;font:500 17px Inter,system-ui,sans-serif;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 18px;outline:none;transition:border-color .2s,box-shadow .2s}
+.search input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(0,113,227,.12)}
+.search input::placeholder{color:var(--ink3)}
+ul{list-style:none;padding-bottom:80px}
+li{padding:18px 2px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:4px 16px;align-items:baseline}
+.cmd{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:15px;font-weight:600;color:var(--ink)}
+.title{color:var(--ink2);font-size:15px;margin-left:10px}
+.runs{font-size:13px;color:var(--ink3);text-align:right;white-space:nowrap}
+.desc{grid-column:1 / -1;font-size:14.5px;color:var(--ink2);line-height:1.45}
+.meta{grid-column:1 / -1;font-size:12.5px;color:var(--ink3)}
+.empty{padding:48px 0;text-align:center;color:var(--ink3);font-size:15px;line-height:1.6}
+.empty code{font-family:ui-monospace,"SF Mono",Menlo,monospace;background:var(--code);padding:2px 6px;border-radius:5px;color:var(--ink2)}
+footer{color:var(--ink3);font-size:13px;text-align:center;padding:0 0 48px}
+@media (max-width:560px){ .title{display:block;margin:4px 0 0} li{grid-template-columns:1fr} .runs{text-align:left} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav><a href="/"><b>Over the Shoulder</b></a><span>Library</span></nav>
+  <header>
+    <h1>The library.</h1>
+    <p class="sub">Every command your team has shown once. Find one, then run it from Slack.</p>
+    <p class="stats" id="stats">&nbsp;</p>
+  </header>
+  <div class="search"><input id="q" type="search" placeholder="Try &ldquo;send launch emails&rdquo;" autocomplete="off" aria-label="Search commands"></div>
+  <ul id="list" aria-live="polite"></ul>
+  <footer>Commands shared with everyone in Northwind, a fictional company. Teach a new one with <code>/teach</code>.</footer>
+</div>
+<script>
+(() => {
+  const list = document.getElementById("list");
+  const stats = document.getElementById("stats");
+  const input = document.getElementById("q");
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const fmt = (n) => Number(n).toLocaleString("en-US");
+  const invocation = (c) => (c.registered === "slash" ? `/${c.name}` : `/do ${c.name}`);
+  let seq = 0;
+
+  function render(data) {
+    if (data.total) stats.textContent = `${fmt(data.total.n)} commands · ${fmt(data.total.runs)} runs`;
+    if (!data.commands.length) {
+      list.innerHTML = `<li class="empty" style="display:block">Nothing matches &ldquo;${esc(data.query)}&rdquo; yet.<br>Show it once in Slack with <code>/teach</code>.</li>`;
+      return;
+    }
+    list.innerHTML = data.commands.map((c) => `
+      <li>
+        <div><span class="cmd">${esc(invocation(c))}</span><span class="title">${esc(c.title)}</span></div>
+        <div class="runs">${fmt(c.uses)} ${c.uses === 1 ? "run" : "runs"}</div>
+        <div class="desc">${esc(c.description)}</div>
+        <div class="meta">Shown by ${esc(c.author_name)} · ${c.steps} steps</div>
+      </li>`).join("");
+  }
+
+  async function load(q) {
+    const id = ++seq;
+    try {
+      const r = await fetch(`/api/commands${q ? `?q=${encodeURIComponent(q)}` : ""}`);
+      const data = await r.json();
+      if (id !== seq) return;
+      if (!r.ok) throw new Error(data.error || "unavailable");
+      render(data);
+    } catch {
+      if (id === seq) list.innerHTML = `<li class="empty" style="display:block">The library is taking a break. Try again in a moment.</li>`;
+    }
+  }
+
+  let t;
+  input.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => load(input.value.trim()), 180); });
+  load("");
+})();
+</script>
+</body>
+</html>
