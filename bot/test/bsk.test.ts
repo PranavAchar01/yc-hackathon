@@ -4,13 +4,14 @@ import {
   looksSecret,
   originOf,
   parseSessionId,
+  requireStartUrl,
   systemPrompt,
   TOOLS,
 } from "../src/executor/bsk.ts";
-import type { ExecEvent, RunTask } from "../src/executor/types.ts";
+import { ResilientExecutor } from "../src/executor/select.ts";
+import { type ExecEvent, type Executor, RunRefused, type RunTask } from "../src/executor/types.ts";
 import type { LlmProvider, ToolResult } from "../src/llm.ts";
 import type { CliResult } from "../src/memorable.ts";
-import { Outbox } from "../src/mock-site.ts";
 
 const task: RunTask = {
   procedure: {
@@ -81,8 +82,6 @@ const make = (runner: (argv: string[]) => Promise<CliResult>, llm: LlmProvider |
     bin: "bsk",
     runner,
     llm,
-    defaultStartUrl: "http://127.0.0.1:3977/mock/",
-    outbox: new Outbox(),
     memorable: null,
     memorableScope: "personal",
     screenshotEveryMs: 60_000,
@@ -255,5 +254,29 @@ describe("BskExecutor", () => {
     const { runner } = fakeBsk({ "session start": { code: 1, stdout: "", stderr: "consent denied" } });
     const { llm } = fakeLlm([]);
     await expect(make(runner, llm).run(task, () => {})).rejects.toThrow(/consent denied/);
+  });
+
+  it("refuses a command with no real start URL, and the guard does not paper over it", async () => {
+    expect(() => requireStartUrl({ ...task, startUrl: null })).toThrow(RunRefused);
+    expect(() => requireStartUrl({ ...task, startUrl: "github.com/pulls" })).toThrow(RunRefused);
+    expect(() => requireStartUrl({ ...task, startUrl: "javascript:alert(1)" })).toThrow(RunRefused);
+    expect(requireStartUrl(task)).toBe("https://github.com/pulls");
+
+    const { calls, runner } = fakeBsk();
+    const { llm } = fakeLlm([]);
+    let fellBack = false;
+    const scripted: Executor = {
+      name: "scripted",
+      run: async () => {
+        fellBack = true;
+        return { elapsedMs: 0, drafts: [], executedBy: "scripted" };
+      },
+    };
+    const guarded = new ResilientExecutor(make(runner, llm), scripted, () => false);
+    await expect(guarded.run({ ...task, startUrl: null }, () => undefined)).rejects.toThrow(
+      "has no real site to start on",
+    );
+    expect(fellBack).toBe(false);
+    expect(calls.some((c) => c[1] === "session")).toBe(false);
   });
 });

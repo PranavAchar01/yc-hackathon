@@ -3,15 +3,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApiServer } from "../src/api.ts";
 import { MemoryLibrary } from "../src/library/memory.ts";
 import { seedIfEmpty } from "../src/library/seed.ts";
-import { Outbox } from "../src/mock-site.ts";
 import { CommandSearch } from "../src/search.ts";
 
 const lib = new MemoryLibrary();
-const outbox = new Outbox();
 const server = createApiServer({
   library: lib,
   search: new CommandSearch(lib, null),
-  outbox,
   health: async () => [{ name: "Library", ok: true, detail: "memory" }],
 });
 let base = "";
@@ -49,30 +46,9 @@ describe("local HTTP API", () => {
   });
 });
 
-describe("mock smoke-test pages", () => {
-  it("serves the inbox and the launch list", async () => {
-    expect(await (await fetch(`${base}/mock/`)).text()).toContain("Fwd: Launch deliverables");
-    expect(await (await fetch(`${base}/mock/sheet`)).text()).toContain("12 contacts");
-  });
-
-  it("queues only @example.com drafts", async () => {
-    const t = Date.now();
-    const post = (to: string) =>
-      fetch(`${base}/mock/queue`, {
-        method: "POST",
-        redirect: "manual",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          to,
-          toName: "Dana",
-          company: "Contoso",
-          subject: "Hi",
-          body: "b",
-          attachment: "a.pdf",
-        }),
-      });
-    expect((await post("dana@example.com")).status).toBe(303);
-    await post("someone@real-company.com");
-    expect(outbox.since(t).map((d) => d.to)).toEqual(["dana@example.com"]);
+describe("no mock pages", () => {
+  it("serves nothing under /mock: demos run only on real sites", async () => {
+    expect((await fetch(`${base}/mock/`)).status).toBe(404);
+    expect((await fetch(`${base}/mock/queue`, { method: "POST" })).status).toBe(405);
   });
 });

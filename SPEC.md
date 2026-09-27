@@ -28,6 +28,7 @@ Workspace "Northwind" (fictional), channel `#launch`.
 Fictional names only. No Slack logo or trademarked branding on the site (Slack-like, unbranded).
 
 ## Rules
+- Demo runs only on real sites (GitHub, Vercel, Gmail). No mock or fake pages, ever: every browser command carries a real start URL.
 - Nothing sends real email. Demo recipients are @example.com.
 - Hackathon rules on pre-built code are unknown until the 1:00 kickoff.
 
