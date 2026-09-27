@@ -42,7 +42,7 @@ import type { StepExtractor } from "./extract.ts";
 import { MAX_FRAMES, subsample } from "./extract.ts";
 import type { GmailSender } from "./gmail-send.ts";
 import { commandsMessage, HOME_SEARCH, homeView, publishedMessage } from "./home.ts";
-import { parseVideoUrl, type VideoLearner } from "./learn.ts";
+import { cleanStartUrl, parseVideoUrl, type VideoLearner } from "./learn.ts";
 import { type CommandLibrary, type CommandRecord, canSee, invocation } from "./library/types.ts";
 import { FramePump, type LiveRelay, newLiveRunId } from "./live.ts";
 import { log } from "./log.ts";
@@ -440,10 +440,13 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     await client.views.open({ trigger_id: body.trigger_id, view: publishModal(pending.draft, pending.meta) });
   });
 
-  // ================================================================ /learn <video url>
+  // ================================================================ /learn <video url> [on <site url>]
   app.command("/learn", async ({ command, ack, respond, client }) => {
     await ack();
-    const check = parseVideoUrl(command.text);
+    // "on <url>": the video teaches the task, this is where yours runs (a tutorial usually shows someone else's repo).
+    const [videoText = "", target] = command.text.trim().split(/\s+on\s+/i);
+    const targetUrl = target ? cleanStartUrl(target) : null;
+    const check = parseVideoUrl(videoText);
     if (!check.ok) {
       await respond({ response_type: "ephemeral", text: check.reason });
       return;
@@ -503,14 +506,14 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
         channel: command.channel_id,
         cardTs: card.ts,
         frames: out.frames.length,
-        ...(x.startUrl ? { startUrl: x.startUrl } : {}),
+        ...((targetUrl ?? x.startUrl) ? { startUrl: targetUrl ?? x.startUrl ?? undefined } : {}),
       };
       const draftId = randomUUID();
       pendingDrafts.set(draftId, { draft, meta });
       cards.set(card.ts, card);
       await card.update(learnedCard({ name: x.name, steps: x.steps.length, draftId, actionId: OPEN_SHEET }));
       log.info(
-        `learn: ${x.name} from ${url} (${x.steps.length} steps, start ${x.startUrl ?? "none"}) in ${Math.round((Date.now() - t0) / 1000)} s`,
+        `learn: ${x.name} from ${url} (${x.steps.length} steps, start ${targetUrl ?? x.startUrl ?? "none"}) in ${Math.round((Date.now() - t0) / 1000)} s`,
       );
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
