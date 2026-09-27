@@ -90,20 +90,21 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 .tech .f b{color:var(--ink);font-weight:650;font-weight:600}
 
 
-/* footage scenes: Slack on the left, the agent browser "in the cloud" on the right */
-.run2{position:absolute;inset:0;padding:120px 70px 110px;display:grid;grid-template-columns:0.82fr 1.18fr;gap:34px}
-.win{position:relative;border-radius:26px;overflow:hidden;background:#fff;box-shadow:var(--shadow-lg);display:flex;flex-direction:column}
-.win .tb{height:52px;flex:none;display:flex;align-items:center;gap:10px;padding:0 20px;font-size:19px;font-weight:600;color:var(--ink2);border-bottom:1px solid var(--line);background:rgba(255,255,255,.9)}
-.win .tb .l{display:flex;gap:8px;margin-right:8px}.win .tb .l i{width:13px;height:13px;border-radius:50%;background:#e5e5ea}
-.win .tb .live{margin-left:auto;display:flex;align-items:center;gap:8px;color:#e01e5a;font-size:17px;font-weight:700;letter-spacing:.04em}
-.win .tb .live i{width:10px;height:10px;border-radius:50%;background:#e01e5a}
-.win video{flex:1;width:100%;height:100%;object-fit:cover;object-position:top left;background:#fff}
-.win.agent{box-shadow:0 0 0 1px rgba(0,113,227,.25),0 30px 90px rgba(0,113,227,.22)}
-.win.agent .tb{background:linear-gradient(90deg,rgba(0,113,227,.08),rgba(255,255,255,.9))}
-.chips{position:absolute;left:70px;right:70px;top:40px;display:flex;gap:14px;align-items:center}
+/* footage scenes: the agent browser big, "in the cloud"; the Slack card beside it */
+.run3{position:absolute;left:64px;right:64px;top:118px;bottom:104px;display:grid;grid-template-columns:1fr 470px;gap:30px}
+.win{position:relative;border-radius:24px;overflow:hidden;background:#fff;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;min-height:0}
+.win .tb{height:50px;flex:none;display:flex;align-items:center;gap:10px;padding:0 18px;font-size:18px;font-weight:600;color:var(--ink2);border-bottom:1px solid var(--line);background:rgba(255,255,255,.92)}
+.win .tb .l{display:flex;gap:8px;margin-right:6px}.win .tb .l i{width:12px;height:12px;border-radius:50%;background:#e5e5ea}
+.win .tb .live{margin-left:auto;display:flex;align-items:center;gap:8px;color:#e01e5a;font-size:16px;font-weight:700;letter-spacing:.05em}
+.win .tb .live i{width:9px;height:9px;border-radius:50%;background:#e01e5a}
+.win video{flex:1;min-height:0;width:100%;object-fit:cover;object-position:top center;background:#0d1117}
+.win.agent{box-shadow:0 0 0 1px rgba(0,113,227,.22),0 30px 90px rgba(0,113,227,.2)}
+.win.agent .tb{background:linear-gradient(90deg,rgba(0,113,227,.09),rgba(255,255,255,.92))}
+.win.slack .shot{flex:1;min-height:0;background:#1a1d21 center/cover no-repeat;background-position:right bottom}
+.chips{position:absolute;left:64px;right:64px;top:40px;display:flex;gap:14px;align-items:center}
 .chips .pill{font-size:22px}
 .chips .speed{margin-left:auto;font-size:20px;color:var(--ink2)}
-.cap{position:absolute;left:0;right:0;bottom:34px;text-align:center;font-size:34px;font-weight:650;font-weight:600;letter-spacing:-.015em}
+.cap{position:absolute;left:0;right:0;bottom:30px;text-align:center;font-size:34px;font-weight:600;letter-spacing:-.015em;opacity:0}
 .cap em{font-style:normal;color:var(--accent)}
 
 /* S8 close */
@@ -200,23 +201,45 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 </section>
 
 <script>
-(() => {
+(async () => {
 
-  // Footage scenes are built from film/deck/media/<name>.json + <name>-slack.mp4 + <name>-agent.mp4.
-  window.runScene = function (name, opt) {
+  // Footage scene: media/<name>-agent.mp4 (full-screen agent browser) + media/<name>-slack.json (timed Slack frames).
+  async function runScene(name, opt) {
+    const meta = await (await fetch(`media/${name}.json`)).json();
+    const slack = await (await fetch(`media/${name}-slack.json`)).json();
     const sec = document.createElement("section");
     sec.className = "scene"; sec.id = "s-" + name;
     sec.innerHTML = `
-      <div class="chips">${opt.chips.map(([t, c]) => `<span class="pill glass"><span class="dot" style="background:${c}"></span>${t}</span>`).join("")}<span class="pill glass speed">${opt.speedLabel}</span></div>
-      <div class="run2">
-        <div class="win"><div class="tb"><span class="l"><i></i><i></i><i></i></span>Slack · ${opt.channel}</div><video muted playsinline preload="auto" src="media/${name}-slack.mp4"></video></div>
+      <div class="chips">${opt.chips.map(([t, c]) => `<span class="pill glass"><span class="dot" style="background:${c}"></span>${t}</span>`).join("")}<span class="pill glass speed">${meta.speed > 1 ? `${meta.speed}× speed · real run` : "Real time"}</span></div>
+      <div class="run3">
         <div class="win agent"><div class="tb"><span class="l"><i></i><i></i><i></i></span>☁︎ Agent cloud · worker 01 · ${opt.site}<span class="live"><i></i>LIVE</span></div><video muted playsinline preload="auto" src="media/${name}-agent.mp4"></video></div>
+        <div class="win slack"><div class="tb"><span class="l"><i></i><i></i><i></i></span>Slack · #eng</div><div class="shot"></div></div>
       </div>
       <div class="cap"></div>`;
     document.body.insertBefore(sec, document.querySelector("script"));
-    sec._caps = opt.caps; sec._clipStart = opt.clipStart || 0;
-    return sec;
-  };
+    // preload the Slack frames so a seek never shows a blank panel
+    await Promise.all(slack.map((f) => new Promise((r) => { const im = new Image(); im.onload = im.onerror = r; im.src = f.src; })));
+    const video = sec.querySelector("video");
+    await new Promise((r) => { if (video.readyState >= 1) r(); else video.addEventListener("loadedmetadata", r, { once: true }); });
+    sec._run = { meta, slack, video, shot: sec.querySelector(".shot"), cap: sec.querySelector(".cap"), caps: opt.caps || [] };
+    return [sec.id, Math.min(meta.duration, opt.max || meta.duration) + (opt.pad || 0.8)];
+  }
+
+  async function seekRun(sec, local) {
+    const r = sec._run;
+    const vt = Math.max(0, Math.min(r.meta.duration - 0.05, local - 0.3));
+    if (Math.abs(r.video.currentTime - vt) > 0.001) {
+      await new Promise((res) => { r.video.addEventListener("seeked", res, { once: true }); r.video.currentTime = vt; });
+    }
+    const real = vt * r.meta.speed;
+    let f = r.slack[0];
+    for (const x of r.slack) { if (x.t <= real) f = x; else break; }
+    if (f && r.shot._src !== f.src) { r.shot.style.backgroundImage = `url(${f.src})`; r.shot._src = f.src; }
+    const c = r.caps.find(([a, b]) => local >= a && local < b);
+    r.cap.innerHTML = c ? c[2] : "";
+    r.cap.style.opacity = c ? Math.min(1, (local - c[0]) / 0.4, (c[1] - local) / 0.4) : 0;
+  }
+
   const OUT = (p) => 1 - Math.pow(1 - p, 3);
   const cl = (x) => Math.max(0, Math.min(1, x));
   const XF = 0.6;              // crossfade between scenes
@@ -226,6 +249,19 @@ h2 .dim,h1 .dim{color:var(--ink3)}
     ["s-title", 5.0], ["s-problem", 9.0], ["s-forget", 8.5], ["s-theme", 8.0], ["s-idea", 10.0],
     ["s-arch", 12.0], ["s-stack", 14.0], ["s-close", 6.0],
   ];
+  // Real runs, filmed on real sites. Each loads only if its prepped media exists.
+  const FOOTAGE = [
+    ["triage", { site: "github.com", chips: [["/triage", "var(--aub)"], ["Real GitHub · private repo", "#24292f"]], caps: window.CAPS?.triage }],
+    ["ship", { site: "github.com", chips: [["/ship", "var(--aub)"], ["Merges a real PR · publishes a release", "#24292f"]], caps: window.CAPS?.ship }],
+    ["standup", { site: "github.com", chips: [["/standup", "var(--aub)"], ["Reads the repo's last 24 hours", "#24292f"]], caps: window.CAPS?.standup }],
+    ["deploys", { site: "vercel.com", chips: [["/deploys", "var(--aub)"], ["Real Vercel dashboard · read-only", "#000"]], caps: window.CAPS?.deploys }],
+  ];
+  const built = [];
+  for (const [name, opt] of FOOTAGE) {
+    const ok = await fetch(`media/${name}.json`, { method: "HEAD" }).then((r) => r.ok).catch(() => false);
+    if (ok) built.push(await runScene(name, { ...opt, caps: opt.caps || [] }));
+  }
+  SCENES.splice(SCENES.findIndex(([id]) => id === "s-idea") + 1, 0, ...built);
   let t0 = 0;
   const plan = SCENES.map(([id, d]) => { const s = { id, start: t0, dur: d, el: document.getElementById(id) }; t0 += d - XF; return s; });
   const DURATION = t0 + XF;
@@ -280,6 +316,7 @@ h2 .dim,h1 .dim{color:var(--ink3)}
       s.el.style.opacity = local < 0 || local > s.dur ? 0 : (s === plan[0] && local < XF ? 1 : a);
       if (s.el.style.opacity > 0) {
         animateIn(s.el, local);
+        if (s.el._run) await seekRun(s.el, local);
         if (s.id === "s-arch") { layoutEdges(s.el); packet(s.el, local); }
       }
     }
