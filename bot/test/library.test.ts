@@ -255,7 +255,7 @@ describe("seed", () => {
     expect(await syncRealSiteCommands(lib, data)).toEqual(["ship", "standup", "triage", "deploys"]);
     const standup = await lib.get("standup");
     expect(standup?.title).toBe("Daily standup from GitHub");
-    expect(standup?.startUrl).toBe("https://github.com/PranavAchar01?tab=overview");
+    expect(standup?.startUrl).toBe("https://github.com/PranavAchar01/over-the-shoulder/commits/main");
     expect(standup?.uses).toBe(1);
     expect(await syncRealSiteCommands(lib, data)).toHaveLength(4);
     expect(await lib.count()).toBe(4);

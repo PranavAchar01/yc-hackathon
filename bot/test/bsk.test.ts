@@ -128,7 +128,7 @@ describe("bsk helpers", () => {
   });
 
   it("parses origins", () => {
-    expect(originOf("https://github.com/PranavAchar01?tab=overview")).toBe("https://github.com");
+    expect(originOf("https://github.com/PranavAchar01/over-the-shoulder/commits/main")).toBe("https://github.com");
     expect(originOf("https://vercel.com/phantom3452s-projects/over-the-shoulder")).toBe("https://vercel.com");
     expect(originOf("not a url")).toBeNull();
   });
