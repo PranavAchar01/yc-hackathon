@@ -119,7 +119,7 @@ export const LIVE_IMAGE_EVERY_MS = 1_200;
 const LIVE_IMAGE_MAX_MS = 8_000;
 
 /** Commands this app handles itself. Everything else that reaches us is a published command. */
-export const FIXED_COMMANDS = ["teach", "new", "do", "ots", "commands", "learn"] as const;
+export const FIXED_COMMANDS = ["teach", "new", "do", "ots", "commands", "learn", "team"] as const;
 export const DYNAMIC_COMMAND = new RegExp(`^/(?!(?:${FIXED_COMMANDS.join("|")})$)[a-z0-9][a-z0-9_-]*$`);
 const OPEN_SHEET = "ots_open_sheet";
 

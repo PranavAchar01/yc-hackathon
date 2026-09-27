@@ -452,6 +452,8 @@ window.CAPS = {
   const XF = 0.6;              // crossfade between scenes
   const STAGGER = 0.28;        // delay between data-in items
   // [id, seconds]. Footage scenes are inserted here as they are approved.
+  // ?only=team renders just the Speedrun /team take (the pitch deck's demo clip).
+  const ONLY = new URLSearchParams(location.search).get("only");
   // Intro: B-roll of real articles, the theme, the idea. Outro: B-roll of the product, then the close.
   const N = "media/news/", B = "media/broll/";
   const INTRO = [
@@ -474,7 +476,7 @@ window.CAPS = {
     { id: "b-lib", dur: 3.8, plate: B + "library.jpg", c: "#e01e5a", chip: ["Neon + Vercel", "the library"], cap: "Every run, <em>saved and searchable</em>.",
       cards: [{ src: B + "library.jpg", x: 400, y: 70, w: 1120, rot: 0.4, d: 0.1 }] },
   ];
-  const SCENES = [...INTRO.map(brollScene), ["s-theme", 6.0], ["s-idea", 5.5], ...OUTRO.map(brollScene), ["s-close", 5.0]];
+  const SCENES = ONLY ? [["s-idea", 0.01]] : [...INTRO.map(brollScene), ["s-theme", 6.0], ["s-idea", 5.5], ...OUTRO.map(brollScene), ["s-close", 5.0]];
   // Real runs, filmed in Slack only (the agent's browser shows inside the card). Each loads if its media exists.
   // [name, options for slackScene]; the order is the story: learn a command, run it, check it on GitHub.
   // The live tile sits in the same place in every take (tools/focus.py finds its LIVE dot): [0.42, 0.564].
@@ -506,7 +508,31 @@ window.CAPS = {
     ],
     sfx: [["type", "sent", 0.05], ["click", "play", 0], ["whoosh", "play", 1.5], ["chime", "flipped", 0.3]],
   };
-  const TAKES = window.TAKES || [
+  const TEAM = ["team", {
+    focus: [0.42, 0.56],
+    segs: [
+      ["sent", -1, "planned", 2.5, 1],                        // /team typed, the router's plan appears
+      ["planned", 2.5, "play1", 1.5, "1.5s"],
+      ["play1", 1.5, "done1", 0, "8s", 2.1],                  // GitHub agent, live
+      ["done1", 0, "play2", 1.5, "3s"],                       // done, handoff in the thread
+      ["play2", 1.5, "done2", 0, "6s", 2.1],                  // Gmail agent drafts, live
+      ["done2", 0, "review", 2.5, "2.5s"],                    // 3 drafts ready
+      ["send", -0.3, "play3", 1.5, "1.5s"],                   // Send
+      ["play3", 1.5, "delivered", 0, "7s", 2.1],              // Gmail sending, live in the card
+      ["delivered", 0, "verify", -1.3, "1.5s"],              // the card flips to 3 emails sent
+      ["verify", -1.3, "verify", -0.45, 0.3],                 // held: 3 emails sent, tokens circled
+      ["verify", 6, "verify", 11.5, 1],                       // the sent mail in Gmail, times circled
+    ],
+    circles: [
+      { at: ["review", 0.2], delay: 0.2, until: ["review", 2.5], cx: 765, cy: 346, rx: 190, ry: 26 },
+      { at: ["verify", -1.3], delay: 0.25, until: ["verify", -0.45], cx: 802, cy: 414, rx: 214, ry: 27 },
+      { at: ["verify", 6], delay: 0.6, cx: 1837, cy: 407, rx: 48, ry: 50 },
+    ],
+    sfx: [["type", "sent", 0.05], ["chime", "planned", 0.3], ["click", "play1", 0], ["whoosh", "play1", 1.5], ["chime", "done1", 0.3],
+      ["click", "play2", 0], ["whoosh", "play2", 1.5], ["chime", "review", 0.2], ["pop", "review", 0.4], ["click", "send", 0],
+      ["whoosh", "play3", 1.5], ["chime", "verify", -1.3], ["pop", "verify", -1.2], ["tab", "verify", 6], ["pop", "verify", 6.6]],
+  }];
+  const TAKES = ONLY === "team" ? [TEAM] : window.TAKES || [
     ["learn", { focus: [0.3, 0.55], segs: [["sent", -1, "sent", 2.5, 1], ["sent", 2.5, "learned", 0, "3s"], ["learned", 0, "sheet", 0, 1], ["sheet", 0, "publish", 2, 1.5]],
       sfx: [["type", "sent", 0.05], ["whoosh", "sent", 2.5], ["chime", "learned", 0.2], ["click", "sheet", 0], ["click", "publish", 0]] }],
     ["create-release", QUICK],
@@ -542,7 +568,7 @@ window.CAPS = {
     const ok = await fetch(`media/${name}-3.json`, { method: "HEAD" }).then((r) => r.ok).catch(() => false);
     if (ok) built.push(await slackScene(name, o));
   }
-  const lib = await libraryScene();
+  const lib = ONLY ? null : await libraryScene();
   if (lib) built.push(lib);
   SCENES.splice(SCENES.findIndex(([id]) => id === "s-idea") + 1, 0, ...built);
   // B-roll whooshes for the mix
