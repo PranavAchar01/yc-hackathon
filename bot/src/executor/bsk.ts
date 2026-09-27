@@ -285,7 +285,11 @@ export class BskExecutor implements Executor {
         );
         if (reply.refused) throw new Error("the model declined this run");
         const uses = reply.calls;
-        if (uses.length === 0) break;
+        if (uses.length === 0) {
+          // The model ended without calling finish: after real work, its last message is the summary.
+          if (!summary && done.size > 0) summary = reply.text.trim() || "Done.";
+          break;
+        }
 
         const results: ToolResult[] = [];
         for (const use of uses) {

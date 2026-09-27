@@ -107,6 +107,19 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 .cap{position:absolute;left:0;right:0;bottom:30px;text-align:center;font-size:34px;font-weight:600;letter-spacing:-.015em;opacity:0}
 .cap em{font-style:normal;color:var(--accent)}
 
+
+/* two-view demo: edge to edge, like a screen recording. No cards, no slide chrome. */
+.demo{position:absolute;inset:0;background:#0b0c0f;overflow:hidden}
+.demo video{position:absolute;top:0;height:100%;object-fit:cover;background:#0b0c0f}
+.demo .v-slack{left:0;width:100%;object-position:50% 0}
+.demo .v-agent{right:0;width:50%;object-position:50% 0;opacity:0}
+.demo .seam{position:absolute;top:0;bottom:0;left:50%;width:2px;background:rgba(255,255,255,.18);opacity:0}
+.demo .lbl{position:absolute;left:28px;bottom:26px;display:flex;gap:10px;opacity:.95}
+.demo .lbl span{font:600 19px -apple-system,"SF Pro Text",Inter,sans-serif;color:#fff;background:rgba(20,20,24,.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:8px 16px}
+.demo .lbl .mono{font-family:"SF Mono",ui-monospace,Menlo,monospace}
+.demo .tag{position:absolute;top:22px;padding:6px 14px;border-radius:999px;font:600 16px -apple-system,Inter,sans-serif;color:#fff;background:rgba(20,20,24,.55);backdrop-filter:blur(12px);opacity:0}
+.demo .tag.l{left:24px}.demo .tag.r{left:calc(50% + 24px)}
+
 /* S8 close */
 .url{margin-top:54px;font-size:30px;font-weight:600;color:var(--accent)}
 </style>
@@ -250,6 +263,51 @@ window.CAPS = {
     return [sec.id, video.duration + 0.8];
   }
 
+  async function demoScene(name, what) {
+    const m = await (await fetch(`media/${name}-2v.json`)).json();
+    const sec = document.createElement("section");
+    sec.className = "scene"; sec.id = "s-" + name;
+    sec.innerHTML = `<div class="demo">
+      <video class="v-slack" muted playsinline preload="auto" src="media/${name}-slack.mp4"></video>
+      <video class="v-agent" muted playsinline preload="auto" src="media/${name}-agent.mp4"></video>
+      <div class="seam"></div>
+      <div class="tag l">Slack · #sales</div><div class="tag r">The agent, working in Chrome</div>
+      <div class="lbl"><span class="mono">/${name}</span><span>${what}</span><span class="spd"></span></div></div>`;
+    document.body.insertBefore(sec, document.querySelector("script"));
+    const vs = sec.querySelector(".v-slack"), va = sec.querySelector(".v-agent");
+    await Promise.all([vs, va].map((v) => new Promise((r) => { if (v.readyState >= 1) r(); else v.addEventListener("loadedmetadata", r, { once: true }); })));
+    const A = Math.min(m.agentOffset + 1.5, m.slackDur);
+    const HOLD = 4.0, B = 15.0;
+    const sEnd = Math.max(A + 1, m.slackDur - HOLD);
+    const speed = (m.agentDur - (A - m.agentOffset)) / B;
+    sec.querySelector(".spd").textContent = `${Math.max(1, speed).toFixed(0)}× speed · real run`;
+    sec._demo = { m, vs, va, A, B, HOLD, sEnd, speed, el: sec };
+    return [sec.id, A + B + HOLD + 0.6];
+  }
+
+  const seekTo = (v, t) => Math.abs(v.currentTime - t) < 0.001 ? Promise.resolve() :
+    new Promise((res) => { v.addEventListener("seeked", res, { once: true }); v.currentTime = Math.max(0, Math.min(v.duration - 0.04, t)); });
+
+  async function seekDemo(sec, local) {
+    const d = sec._demo, e = d.el;
+    const spd = e.querySelector(".spd"), seam = e.querySelector(".seam"), tags = e.querySelectorAll(".tag");
+    let ts, ta = null, split = 0;
+    if (local < d.A) { ts = local; }
+    else if (local < d.A + d.B) {
+      const p = (local - d.A) / d.B;
+      ts = d.A + p * (d.sEnd - d.A);
+      ta = (d.A - d.m.agentOffset) + p * (d.m.agentDur - (d.A - d.m.agentOffset));
+      split = Math.min(1, (local - d.A) / 0.5, (d.A + d.B - local) / 0.5);
+    } else { ts = d.sEnd + (local - d.A - d.B); }
+    d.vs.style.width = `${100 - 50 * split}%`;
+    d.vs.style.objectPosition = split > 0 ? "58% 0" : "50% 0";
+    d.va.style.opacity = split; seam.style.opacity = split;
+    tags.forEach((t) => (t.style.opacity = split));
+    spd.style.display = split > 0.05 ? "" : "none";
+    await seekTo(d.vs, ts);
+    if (ta !== null) await seekTo(d.va, ta);
+  }
+
   async function seekRun(sec, local) {
     const r = sec._run;
     const vt = Math.max(0, Math.min(r.meta.duration - 0.05, local - 0.3));
@@ -275,17 +333,12 @@ window.CAPS = {
     ["s-title", 5.0], ["s-problem", 9.0], ["s-forget", 8.5], ["s-theme", 8.0], ["s-idea", 10.0],
     ["s-arch", 12.0], ["s-stack", 14.0], ["s-close", 6.0],
   ];
-  // Real runs, filmed on real sites. Each loads only if its prepped media exists.
-  const FOOTAGE = [
-    ["triage", { site: "github.com", chips: [["/triage", "var(--aub)"], ["Real GitHub · private repo", "#24292f"]], caps: window.CAPS?.triage }],
-    ["ship", { site: "github.com", chips: [["/ship", "var(--aub)"], ["Merges a real PR · publishes a release", "#24292f"]], caps: window.CAPS?.ship, noSlack: true, max: 30 }],
-    ["standup", { site: "github.com", chips: [["/standup", "var(--aub)"], ["Reads the repo's last 24 hours", "#24292f"]], caps: window.CAPS?.standup }],
-    ["deploys", { site: "vercel.com", chips: [["/deploys", "var(--aub)"], ["Real Vercel dashboard · read-only", "#000"]], caps: window.CAPS?.deploys }],
-  ];
+  // Real runs, filmed as two real windows at once. Each loads only if its prepped media exists.
+  const DEMO = [["triage", "Triage new GitHub issues"], ["ship", "Merge the release PR and publish it"], ["standup", "Write the standup"], ["deploys", "Check the production deploy"]];
   const built = [];
-  for (const [name, opt] of FOOTAGE) {
-    const ok = await fetch(`media/${name}.json`, { method: "HEAD" }).then((r) => r.ok).catch(() => false);
-    if (ok) built.push(await runScene(name, { ...opt, caps: opt.caps || [] }));
+  for (const [name, what] of DEMO) {
+    const ok = await fetch(`media/${name}-2v.json`, { method: "HEAD" }).then((r) => r.ok).catch(() => false);
+    if (ok) built.push(await demoScene(name, what));
   }
   const lib = await libraryScene();
   if (lib) built.push(lib);
@@ -345,6 +398,7 @@ window.CAPS = {
       if (s.el.style.opacity > 0) {
         animateIn(s.el, local);
         if (s.el._run) await seekRun(s.el, local);
+        if (s.el._demo) await seekDemo(s.el, local);
         if (s.id === "s-arch") { layoutEdges(s.el); packet(s.el, local); }
       }
     }

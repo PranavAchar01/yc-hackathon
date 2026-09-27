@@ -9,7 +9,7 @@ CMD=$1; MAX=${2:-600}
 cd ${0:A:h}/..
 LOG=../bot/.stage/bot.log
 STOP=raw/$CMD.stop; rm -f $STOP raw/$CMD-slack.mov raw/$CMD-agent.mov
-SLACK_URL="https://app.slack.com/client/T0C4YS898AU/C0C3YJH4JV9"
+SLACK_URL="https://app.slack.com/client/T0C4YS898AU/C0C3YJ5CB7V"
 ./tools/nudge
 ( while [ ! -e $STOP ]; do ./tools/nudge; sleep 20; done ) & NUDGE=$!
 
@@ -36,9 +36,9 @@ python3 -c 'import time;print(int(time.time()*1000))' > raw/$CMD.t0
 sleep 2
 ./tools/typer "/$CMD" 120
 sleep 1.0
-./tools/typer "" 0 --enter      # pick the highlighted command
+osascript -e 'tell application "System Events" to key code 36'   # pick the highlighted command
 sleep 0.8
-./tools/typer "" 0 --enter      # send
+osascript -e 'tell application "System Events" to key code 36'   # send
 echo "sent /$CMD at $(date +%T)"
 
 AREC=""

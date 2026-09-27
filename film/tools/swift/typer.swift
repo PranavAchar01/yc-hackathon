@@ -19,5 +19,10 @@ for ch in text.utf16 {
 }
 if a.contains("--enter") {
   usleep(400_000)
-  for down in [true, false] { CGEvent(keyboardEventSource: src, virtualKey: 36, keyDown: down)?.post(tap: .cghidEventTap) }
+  var cr: UniChar = 13
+  for down in [true, false] {
+    let e = CGEvent(keyboardEventSource: src, virtualKey: 36, keyDown: down)
+    e?.keyboardSetUnicodeString(stringLength: 1, unicodeString: &cr)
+    e?.post(tap: .cghidEventTap)
+  }
 }
