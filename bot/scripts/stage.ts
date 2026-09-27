@@ -17,6 +17,9 @@ import { defaultRunner, MemorableClient } from "../src/memorable.ts";
 const BOT = fileURLToPath(new URL("..", import.meta.url));
 const ROOT = join(BOT, "..");
 const STATE = join(BOT, ".stage");
+
+// gbrain is a Bun script (#!/usr/bin/env bun); make Bun resolvable for it and for the bot we spawn.
+process.env.PATH = `${join(homedir(), ".bun", "bin")}:${process.env.PATH ?? ""}`;
 const COMPOSE = join(ROOT, "qm-config", "docker-compose.yml");
 const API = `http://127.0.0.1:${process.env.OTS_API_PORT ?? "3977"}`;
 const EXECUTOR = process.env.OTS_EXECUTOR ?? "bsk";

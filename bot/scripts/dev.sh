@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+export PATH="$HOME/.bun/bin:$PATH"
 # pnpm dev: read secrets from Keychain, then run the bot in the foreground.
 set -euo pipefail
 cd "$(dirname "$0")/.."
