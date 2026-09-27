@@ -131,6 +131,22 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 .sl svg.ink{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
 .sl svg.ink ellipse{fill:none;stroke:#ff3b30;stroke-width:5;stroke-linecap:round;filter:drop-shadow(0 2px 6px rgba(0,0,0,.35))}
 
+/* B-roll (as in the Player Two films): real pages as tilted cards over a blurred, slowly pushing plate */
+.br{position:absolute;inset:0;background:#07090e;overflow:hidden}
+.br .plate{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(18px) brightness(.32);will-change:transform}
+.br .plate.clear{filter:brightness(.42) saturate(.9)}
+.br .card{position:absolute;margin:0;border-radius:14px;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.14);opacity:0;will-change:transform,opacity}
+.br .card img{display:block;width:100%;height:auto}
+.br .chip{position:absolute;left:72px;top:64px;display:flex;align-items:center;gap:14px;padding:13px 20px;border-radius:8px;background:rgba(8,12,22,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);font:500 21px/1 "SF Mono",ui-monospace,Menlo,monospace;letter-spacing:.2em;text-transform:uppercase;color:#e7eeff;opacity:0;z-index:3}
+.br .chip i{width:9px;height:9px;border-radius:50%;background:var(--c);box-shadow:0 0 14px var(--c)}
+.br .chip b{font-weight:500;color:var(--c)}
+.br .cap{position:absolute;left:0;right:0;bottom:92px;margin:0 auto;width:fit-content;max-width:1400px;padding:20px 34px 22px;border-radius:16px;background:rgba(10,12,18,.8);backdrop-filter:blur(14px);font:600 44px/1.28 -apple-system,"SF Pro Display",Inter,sans-serif;letter-spacing:-.01em;text-align:center;color:#fff;opacity:0;z-index:3}
+.br .cap em{font-style:normal;color:var(--c)}
+.br .copy{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;z-index:3}
+.br .copy h1{font-size:140px;color:#fff}
+.br .copy .sub{color:rgba(255,255,255,.72);font-size:38px}
+.br .copy > *{opacity:0}
+
 /* S8 close */
 .url{margin-top:54px;font-size:30px;font-weight:600;color:var(--accent)}
 </style>
@@ -267,7 +283,7 @@ window.CAPS = {
     await new Promise((r) => { if (video.readyState >= 1) r(); else video.addEventListener("loadedmetadata", r, { once: true }); });
     sec._run = { meta: { speed: 1, duration: video.duration }, slack: [], video, shot: { style: {} }, cap: sec.querySelector(".cap"),
       caps: [] };
-    return [sec.id, video.duration + 0.8];
+    return [sec.id, Math.min(13, video.duration) + 0.8];
   }
 
   async function demoScene(name, what) {
@@ -362,6 +378,36 @@ window.CAPS = {
     await seekTo(d.v, ts);
   }
 
+  // B-roll shot. spec: { id, dur, plate, clear, c, chip:[a,b], cap, cards:[{src,x,y,w,rot,d}], title:[h1, sub] }
+  function brollScene(b) {
+    const sec = document.createElement("section");
+    sec.className = "scene"; sec.id = b.id;
+    sec.innerHTML = `<div class="br" style="--c:${b.c || "#36c5f0"}">
+      <div class="plate${b.clear ? " clear" : ""}" style="background-image:url(${b.plate})"></div>
+      ${(b.cards || []).map((k) => `<figure class="card" style="left:${k.x}px;top:${k.y}px;width:${k.w}px"><img src="${k.src}" alt=""></figure>`).join("")}
+      ${b.chip ? `<div class="chip"><i></i>${b.chip[0]}${b.chip[1] ? ` <b>· ${b.chip[1]}</b>` : ""}</div>` : ""}
+      ${b.cap ? `<div class="cap">${b.cap}</div>` : ""}
+      ${b.title ? `<div class="copy"><h1>${b.title[0]}</h1><div class="sub">${b.title[1]}</div></div>` : ""}</div>`;
+    document.body.insertBefore(sec, document.querySelector("script"));
+    sec._broll = { b, plate: sec.querySelector(".plate"), cards: [...sec.querySelectorAll(".card")], chip: sec.querySelector(".chip"),
+      cap: sec.querySelector(".cap"), copy: [...sec.querySelectorAll(".copy > *")] };
+    return [b.id, b.dur];
+  }
+  function seekBroll(sec, local) {
+    const r = sec._broll, b = r.b;
+    const from = b.from ?? 1.08, to = b.to ?? 1.16;
+    r.plate.style.transform = `scale(${from + (to - from) * cl(local / b.dur)})`;
+    r.cards.forEach((el, i) => {
+      const k = b.cards[i], p = OUT(cl((local - (k.d ?? 0.15 + i * 0.9)) / 0.7));
+      const drift = -14 * cl((local - (k.d ?? 0)) / 8);
+      el.style.opacity = p;
+      el.style.transform = `translateY(${(1 - p) * 40 + drift}px) scale(${0.96 + 0.04 * p}) rotate(${k.rot ?? 0}deg)`;
+    });
+    const rise = (el, d) => { if (!el) return; const p = OUT(cl((local - d) / 0.5)); el.style.opacity = p; el.style.transform = `translateY(${(1 - p) * 12}px)`; };
+    rise(r.chip, 0.15); rise(r.cap, 0.35);
+    r.copy.forEach((el, i) => rise(el, 0.3 + i * 0.45));
+  }
+
   const seekTo = (v, t) => Math.abs(v.currentTime - t) < 0.001 ? Promise.resolve() :
     new Promise((res) => { v.addEventListener("seeked", res, { once: true }); v.currentTime = Math.max(0, Math.min(v.duration - 0.04, t)); });
 
@@ -406,10 +452,29 @@ window.CAPS = {
   const XF = 0.6;              // crossfade between scenes
   const STAGGER = 0.28;        // delay between data-in items
   // [id, seconds]. Footage scenes are inserted here as they are approved.
-  const SCENES = [
-    ["s-title", 5.0], ["s-problem", 8.0], ["s-forget", 7.5], ["s-theme", 7.5], ["s-idea", 7.0],
-    ["s-stack", 10.0], ["s-close", 6.0],
+  // Intro: B-roll of real articles, the theme, the idea. Outro: B-roll of the product, then the close.
+  const N = "media/news/", B = "media/broll/";
+  const INTRO = [
+    { id: "b-title", dur: 5, plate: B + "slack-plate.jpg", from: 1.05, to: 1.12, title: ["Over the Shoulder", "Show it once. It's handled forever."] },
+    { id: "b-chores", dur: 6, plate: N + "asana.jpg", c: "#ecb22e", chip: ["The problem", "the same chores"],
+      cap: "Teams lose hours to the <em>same clicks</em>, every day.",
+      cards: [{ src: N + "asana.jpg", x: 120, y: 110, w: 860, rot: -1.2, d: 0.15 }, { src: N + "smartsheet.jpg", x: 900, y: 150, w: 880, rot: 1, d: 1.1 },
+        { src: N + "slack.jpg", x: 480, y: 250, w: 900, rot: -0.4, d: 2.1 }] },
+    { id: "b-forget", dur: 5.5, plate: N + "atlan.jpg", c: "#ff375f", chip: ["AI agents", "no memory"],
+      cap: "Agents can click. They <em>forget everything</em>.",
+      cards: [{ src: N + "atlan.jpg", x: 140, y: 120, w: 900, rot: -1, d: 0.15 }, { src: N + "feather.jpg", x: 880, y: 180, w: 880, rot: 1, d: 1.2 }] },
   ];
+  const OUTRO = [
+    { id: "b-slack", dur: 3.8, plate: B + "live-card.jpg", c: "#36c5f0", chip: ["Slack", "video blocks"], cap: "The agent's browser, <em>live in the card</em>.",
+      cards: [{ src: B + "live-card.jpg", x: 460, y: 90, w: 1000, rot: -0.6, d: 0.1 }] },
+    { id: "b-bsk", dur: 3.8, plate: B + "github.jpg", c: "#2eb67d", chip: ["BrowserSkill", "real Chrome"], cap: "Your signed-in browser. <em>Real sites</em>.",
+      cards: [{ src: B + "github.jpg", x: 400, y: 80, w: 1120, rot: 0.5, d: 0.1 }] },
+    { id: "b-openai", dur: 3.8, plate: B + "learn.jpg", c: "#10a37f", chip: ["OpenAI", "Responses API"], cap: "A video becomes a command in <em>15 seconds</em>.",
+      cards: [{ src: B + "learn.jpg", x: 420, y: 80, w: 1080, rot: -0.5, d: 0.1 }] },
+    { id: "b-lib", dur: 3.8, plate: B + "library.jpg", c: "#e01e5a", chip: ["Neon + Vercel", "the library"], cap: "Every run, <em>saved and searchable</em>.",
+      cards: [{ src: B + "library.jpg", x: 400, y: 70, w: 1120, rot: 0.4, d: 0.1 }] },
+  ];
+  const SCENES = [...INTRO.map(brollScene), ["s-theme", 6.0], ["s-idea", 5.5], ...OUTRO.map(brollScene), ["s-close", 5.0]];
   // Real runs, filmed in Slack only (the agent's browser shows inside the card). Each loads if its media exists.
   // [name, options for slackScene]; the order is the story: learn a command, run it, check it on GitHub.
   // The live tile sits in the same place in every take (tools/focus.py finds its LIVE dot): [0.42, 0.564].
@@ -429,30 +494,36 @@ window.CAPS = {
     sfx: [["type", "sent", 0.05], ["click", "play", 0], ["whoosh", "play", 1.5], ["chime", "flipped", 0.3], ["pop", "flipped", 0.65],
       ["tab", "verify", 1.8], ...proof.map((c) => ["pop", c.at[0], c.at[1] + (c.delay ?? 0)])],
   });
+  // Quick runs: typed, live (fast, zoomed), done. Only the last run (Gmail) is proven.
+  const QUICK = {
+    focus: [0.42, 0.564],
+    segs: [
+      ["sent", -1, "sent", 2.5, 1],
+      ["sent", 2.5, "play", 1.5, "1.2s"],
+      ["play", 1.5, "done", 0, "7s", 2.2],
+      ["done", 0, "flipped", 0.3, "2.5s"],
+      ["flipped", 0.3, "flipped", 2.3, 1],
+    ],
+    sfx: [["type", "sent", 0.05], ["click", "play", 0], ["whoosh", "play", 1.5], ["chime", "flipped", 0.3]],
+  };
   const TAKES = window.TAKES || [
-    ["learn", { focus: [0.3, 0.55], segs: [["sent", -3.5, "sent", 2.5, 1], ["sent", 2.5, "learned", 0, "5s"], ["learned", 0, "end", 0, 1]],
-      sfx: [["type", "sent", 0.05], ["whoosh", "sent", 2.5], ["chime", "learned", 0.2], ["click", "sheet", 0], ["click", "publish", 0], ["chime", "publish", 0.8]] }],
-    // ...and on GitHub: "released this now", the three new label sets, the commits of today.
-    ["create-release", RUN(0.564, [{ at: ["verify", 1.8], delay: 0.3, cx: 806, cy: 461, rx: 90, ry: 26 }])],
-    ["triage", RUN(0.564, [
-      { at: ["verify", 1.8], delay: 0.3, cx: 990, cy: 425, rx: 46, ry: 21 },
-      { at: ["verify", 1.8], delay: 0.8, cx: 1187, cy: 499, rx: 102, ry: 21 },
-      { at: ["verify", 1.8], delay: 1.3, cx: 1045, cy: 573, rx: 58, ry: 21 },
-    ])],
-    ["standup", RUN(0.564, [{ at: ["verify", 1.8], delay: 0.3, cx: 381, cy: 379, rx: 118, ry: 24 }])],
+    ["learn", { focus: [0.3, 0.55], segs: [["sent", -1, "sent", 2.5, 1], ["sent", 2.5, "learned", 0, "3s"], ["learned", 0, "sheet", 0, 1], ["sheet", 0, "publish", 2, 1.5]],
+      sfx: [["type", "sent", 0.05], ["whoosh", "sent", 2.5], ["chime", "learned", 0.2], ["click", "sheet", 0], ["click", "publish", 0]] }],
+    ["create-release", QUICK],
+    ["triage", QUICK],
     // Gmail: drafts in the card, Send, then the sent mail. The Gmail shot zooms toward the times column
     // (which also keeps the label list out of frame); the three 4:19 PM sends are circled.
     ["announce", {
       focus: [0.42, 0.564],
       segs: [
-        ["sent", -3.5, "sent", 2.5, 1],
-        ["sent", 2.5, "play", 1.5, "2.2s"],
-        ["play", 1.5, "done", 0, "9s", 2.2],                 // the agent drafts, live (reading GitHub)
-        ["done", 0, "flipped", 0.3, 2.5],
-        ["flipped", 0.3, "send", 0.9, 1],                    // 3 drafts ready, Send
-        ["send", 0.9, "play2", 1.5, "2.2s"],                 // the card turns into the Gmail stream, play
-        ["play2", 1.5, "delivered", 0, "11s", 2.2, [0.42, 0.555]],  // Gmail sending, live in the card
-        ["delivered", 0, "sentcard", 0.5, 2.5],
+        ["sent", -1, "sent", 2.5, 1],
+        ["sent", 2.5, "play", 1.5, "1.2s"],
+        ["play", 1.5, "done", 0, "6s", 2.2],                 // the agent drafts, live (reading GitHub)
+        ["done", 0, "flipped", 0.3, "2.5s"],
+        ["flipped", 0.3, "send", 0.9, 1.3],                  // 3 drafts ready, Send
+        ["send", 0.9, "play2", 1.5, "1.5s"],                 // the card turns into the Gmail stream, play
+        ["play2", 1.5, "delivered", 0, "9s", 2.2, [0.42, 0.555]],  // Gmail sending, live in the card
+        ["delivered", 0, "sentcard", 0.5, "2s"],
         ["sentcard", 0.5, "verify", -0.6, 1],                // 3 emails sent
         ["verify", 5.2, "verify", 11.5, 1, 1.45, [1.0, 0.28]],
       ],
@@ -474,13 +545,15 @@ window.CAPS = {
   const lib = await libraryScene();
   if (lib) built.push(lib);
   SCENES.splice(SCENES.findIndex(([id]) => id === "s-idea") + 1, 0, ...built);
+  // B-roll whooshes for the mix
+  window.BROLL = SCENES.filter(([id]) => id.startsWith("b-")).map(([id]) => id);
   let t0 = 0;
   const plan = SCENES.map(([id, d]) => { const s = { id, start: t0, dur: d, el: document.getElementById(id) }; t0 += d - XF; return s; });
   const DURATION = t0 + XF;
   window.DURATION = DURATION;
   window.PLAN = plan.map(({ id, start }) => ({ id, start: +start.toFixed(2) }));
   window.SFX = plan.flatMap((p) => (p.el?._slack?.sfx || []).map(([n, t]) => ({ name: n, t: +(p.start + t).toFixed(3) })))
-    .concat(plan.filter((p) => p.el?._slack || p.id === "s-library").map((p) => ({ name: "swoosh", t: +p.start.toFixed(3) })));
+    .concat(plan.filter((p) => p.el?._slack || p.el?._broll || p.id === "s-library").map((p) => ({ name: "swoosh", t: +p.start.toFixed(3) })));
 
   // architecture edges: place between node centres
   function layoutEdges(scene) {
@@ -533,6 +606,7 @@ window.CAPS = {
         if (s.el._run) await seekRun(s.el, local);
         if (s.el._demo) await seekDemo(s.el, local);
         if (s.el._slack) await seekSlack(s.el, local);
+        if (s.el._broll) seekBroll(s.el, local);
         if (s.id === "s-arch") { layoutEdges(s.el); packet(s.el, local); }
       }
     }

@@ -6,7 +6,7 @@ import puppeteer from "puppeteer-core";
 
 const [deck, input, out] = process.argv.slice(2);
 const CHROME = `${process.env.HOME}/Library/Caches/ms-playwright/chromium-1234/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`;
-const VOL: Record<string, number> = { type: 0.45, click: 0.65, whoosh: 0.32, swoosh: 0.22, chime: 0.55, pop: 0.5, tab: 0.45 };
+const VOL: Record<string, number> = { type: 0.22, click: 0.32, whoosh: 0.16, swoosh: 0.11, chime: 0.27, pop: 0.25, tab: 0.22 };
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--mute-audio"], defaultViewport: { width: 1920, height: 1080 } });
 const page = await browser.newPage();
