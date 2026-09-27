@@ -8,6 +8,8 @@ import type { CliRunner } from "./memorable.ts";
  * 1280 wide) to a relay on the site (`site/api/live/[run].js`, Postgres-backed: it keeps only the latest frame
  * per run and forgets runs after 30 minutes). The run card carries a Block Kit video block whose video_url is
  * the player page (`/live?run=<id>`), which polls the relay about 8 times a second.
+ * Slack resets an open inline player whenever its message is updated, so while the stream is on the card is
+ * left alone: progress ("Step 3 of 6 · 0:42") rides along with each frame and the player shows it.
  */
 
 export interface LiveFinish {
@@ -75,7 +77,7 @@ export class LiveRelay {
   }
 
   /** Store one frame as the run's latest. Returns the relay's sequence number. */
-  async pushFrame(runId: string, png: string, title: string): Promise<number> {
+  async pushFrame(runId: string, png: string, title: string, step?: string): Promise<number> {
     const { body, type } = await this.toJpeg(png);
     const res = await this.fetchImpl(this.endpoint(runId), {
       method: "POST",
@@ -83,6 +85,7 @@ export class LiveRelay {
         authorization: `Bearer ${this.secret}`,
         "content-type": type,
         "x-title": encodeURIComponent(title.slice(0, 120)),
+        ...(step ? { "x-step": encodeURIComponent(step.slice(0, 80)) } : {}),
       },
       body: new Uint8Array(body),
       signal: AbortSignal.timeout(5_000),

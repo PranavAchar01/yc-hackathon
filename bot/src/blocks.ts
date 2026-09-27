@@ -286,6 +286,8 @@ export interface RunView {
   liveImageFileId?: string;
   /** Live player on the site (Block Kit video block); preferred over the image when set. */
   liveVideo?: { url: string; thumbnailUrl: string };
+  /** The finished run in the same video tile: the same player URL (it now plays the replay), final frame. */
+  replay?: { url: string; thumbnailUrl: string };
   liveUrl?: string;
   /** Where the run started; the fallback target of the "Open in ..." button. */
   startUrl?: string;
@@ -391,17 +393,20 @@ export function shortReason(error: string | undefined): string {
   return s.length > 70 ? `${s.slice(0, 67).trimEnd()}...` : s;
 }
 
-function liveBlock(v: RunView, title: string): KnownBlock | null {
-  if (v.liveVideo)
-    return {
-      type: "video",
-      video_url: v.liveVideo.url,
-      thumbnail_url: v.liveVideo.thumbnailUrl,
-      title_url: v.liveVideo.url,
-      title: { type: "plain_text", text: title },
-      alt_text: "Live view of the agent's browser",
-      provider_name: "Over the Shoulder",
-    };
+function videoBlock(v: { url: string; thumbnailUrl: string }, title: string, alt: string): KnownBlock {
+  return {
+    type: "video",
+    video_url: v.url,
+    thumbnail_url: v.thumbnailUrl,
+    title_url: v.url,
+    title: { type: "plain_text", text: title },
+    alt_text: alt,
+    provider_name: "Over the Shoulder",
+  };
+}
+
+function liveBlock(v: RunView): KnownBlock | null {
+  if (v.liveVideo) return videoBlock(v.liveVideo, "Watch live", "Live view of the agent's browser");
   if (v.liveImageFileId)
     return {
       type: "image",
@@ -427,9 +432,10 @@ export function runCard(v: RunView): Card {
 
   if (v.phase === "running") {
     blocks.push({ type: "section", text: md(`${MARKS.running}  *${esc(title)}*`) });
-    const live = liveBlock(v, title);
+    const live = liveBlock(v);
     if (live) blocks.push(live);
-    blocks.push(context(`Step ${currentStep(v.steps)} of ${p.steps.length}  ·  ${clock}`));
+    // With the video the card must stay still (an update resets Slack's player); progress is in the player.
+    if (!v.liveVideo) blocks.push(context(`Step ${currentStep(v.steps)} of ${p.steps.length}  ·  ${clock}`));
     return { text: title, blocks };
   }
 
@@ -479,6 +485,7 @@ export function runCard(v: RunView): Card {
 
   // done
   blocks.push({ type: "section", text: md(`${MARKS.done}  *Done  ·  ${clock}*`) });
+  if (v.replay) blocks.push(videoBlock(v.replay, `Replay  ·  ${title}`, "Replay of the agent's run"));
   const lines = resultLines(v.summary);
   const url = resultUrl(v.summary, v.startUrl);
   const open = url

@@ -25,7 +25,7 @@ import { defaultRunner, MemorableClient } from "./memorable.ts";
 import { Publisher } from "./publish.ts";
 import { CommandRegistrar, SlackManifestApi } from "./registrar.ts";
 import { CommandSearch, GBrainIndex } from "./search.ts";
-import { buildVideo, uploadVideo } from "./video.ts";
+import { buildVideo, replaySeconds, uploadVideo } from "./video.ts";
 
 const config = loadConfig();
 const runner = defaultRunner();
@@ -195,7 +195,12 @@ async function publishVideo(command: string, framesDir: string) {
     const up = await uploadVideo(built, command, blobToken);
     await library.setVideo(command, up.videoUrl, up.posterUrl);
     log.info(`video: /${command} ${built.frames} frames -> ${up.videoUrl}`);
-    return { mp4: built.mp4, videoUrl: up.videoUrl };
+    return {
+      mp4: built.mp4,
+      videoUrl: up.videoUrl,
+      posterUrl: up.posterUrl,
+      durationMs: Math.round(replaySeconds(built.frames) * 1000),
+    };
   } catch (err) {
     log.warn(`video: /${command} failed: ${err instanceof Error ? err.message : err}`);
     return null;

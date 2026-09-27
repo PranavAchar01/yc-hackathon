@@ -14,7 +14,9 @@ import {
 import {
   ACTIONS,
   type Card,
+  currentStep,
   firstName,
+  formatClock,
   LEARN_THUMBS,
   learnedCard,
   learnWatchingCard,
@@ -89,6 +91,10 @@ export interface Deps {
 export interface PublishedVideo {
   mp4: string;
   videoUrl?: string;
+  /** The run's last frame (JPEG): the replay tile's thumbnail. */
+  posterUrl?: string;
+  /** Length of the replay clip. */
+  durationMs?: number;
 }
 
 /** Live view as a Slack image: one upload at a time, every 1.2 s, slower after a rate limit. */
@@ -686,8 +692,12 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     runs.set(view.runId, { view, card, skillFile: skillPath(config.skillsDir, skill), busy: false });
 
     const started = Date.now();
+    // Once the live video is on the card, the card holds still until the run ends: Slack resets an inline
+    // player that is playing whenever its message is updated. Progress travels with the frames instead.
+    let still = false;
     const refresh = () => {
       view.elapsedMs = Date.now() - started;
+      if (still && view.phase === "running") return Promise.resolve();
       return card.update(runCard(view));
     };
 
@@ -703,16 +713,24 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
       if (!hadVideo) return;
       log.warn(`video block rejected by Slack (${reason}); live view falls back to images`);
       mode = "image";
+      still = false;
       delete view.liveVideo;
     };
     const pump =
       live &&
       new FramePump(
-        (png) => live.pushFrame(liveId, png, title),
+        (png) =>
+          live.pushFrame(
+            liveId,
+            png,
+            title,
+            `Step ${currentStep(view.steps)} of ${procedure.steps.length}  ·  ${formatClock(Date.now() - started)}`,
+          ),
         () => {
           if (mode !== "video" || view.phase !== "running") return;
           view.liveVideo = { url: live.playerUrl(liveId), thumbnailUrl: live.frameUrl(liveId) };
           void refresh();
+          still = true;
         },
       );
     let imageEvery = LIVE_IMAGE_EVERY_MS;
@@ -788,6 +806,23 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     }
     delete view.liveVideo;
     delete view.liveImageFileId;
+    // Live video: the player shows "Done" on the last frame at once; the card changes once, when the replay is
+    // ready, into the same tile playing the replay (final frame as its thumbnail).
+    const streamed = !!(live && pump && pump.seq > 0 && mode === "video");
+    const finalState = view.phase === "failed" ? ("failed" as const) : ("done" as const);
+    let video: Awaited<ReturnType<NonNullable<typeof deps.publishVideo>>> = null;
+    if (streamed && live) {
+      await live.finish(liveId, { state: finalState });
+      video = framesDir && deps.publishVideo ? await deps.publishVideo(skill, framesDir) : null;
+      if (video?.videoUrl) {
+        await live.finish(liveId, { state: finalState, replayUrl: video.videoUrl });
+        if (view.phase === "done" && video.posterUrl)
+          view.replay = { url: live.playerUrl(liveId), thumbnailUrl: video.posterUrl };
+        // Someone watching sees the stream fade into the replay; let it play once before the card update
+        // (which resets Slack's player) turns the tile into the replay with the final frame.
+        await new Promise((r) => setTimeout(r, Math.min(13_000, (video?.durationMs ?? 8_000) + 1_000)));
+      }
+    }
     await card.update(runCard(view));
     const thread = (text: string) =>
       client.chat.postMessage({ channel: card.channel, thread_ts: card.ts, text }).catch(() => undefined);
@@ -806,15 +841,12 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
         })
         .catch((err: unknown) => log.warn("recordRun failed", err instanceof Error ? err.message : err));
 
-    // Replay: the run's timelapse as an mp4 reply in the thread (Slack plays it inline), and on the live player.
-    const video = framesDir && deps.publishVideo ? await deps.publishVideo(skill, framesDir) : null;
-    // A GTM review run gets its replay after Send, when the clip also shows the real sends.
-    if (video && !(view.phase === "review" && deps.sender)) await postReplay(client, card, video.mp4);
-    if (live && pump && pump.seq > 0)
-      await live.finish(liveId, {
-        state: view.phase === "failed" ? "failed" : "done",
-        ...(video?.videoUrl ? { replayUrl: video.videoUrl } : {}),
-      });
+    // Without the live video, the replay goes in the thread as an mp4 (Slack plays it inline).
+    if (!streamed) {
+      video = framesDir && deps.publishVideo ? await deps.publishVideo(skill, framesDir) : null;
+      // A GTM review run gets its replay after Send, when the clip also shows the real sends.
+      if (video && !(view.phase === "review" && deps.sender)) await postReplay(client, card, video.mp4);
+    }
   }
 
   async function postReplay(client: WebClient, card: LiveCard, mp4: string): Promise<void> {

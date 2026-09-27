@@ -6,6 +6,7 @@ import pg from "pg";
 // overwritten in place) and forgets runs 30 minutes after their last frame. Why not Vercel Blob: an overwritten
 // blob URL is CDN-cached for at least a minute, and every put is a billed operation; this needs a fresh read
 // every 125 ms. Why not memory: POSTs and GETs can land on different function instances.
+// A finished run with a replay is kept (its last frame is the poster), so a run card's video never expires.
 
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
@@ -30,7 +31,8 @@ function migrate() {
          frame_type text,
          replay_url text,
          updated_at timestamptz NOT NULL DEFAULT now()
-       )`,
+       );
+       ALTER TABLE live_frames ADD COLUMN IF NOT EXISTS step text`,
     )
     .catch((err) => {
       ready = undefined;
@@ -60,7 +62,7 @@ async function readBody(req, limit) {
 const noStore = (res) => {
   res.setHeader("cache-control", "no-store, max-age=0");
   res.setHeader("access-control-allow-origin", "*");
-  res.setHeader("access-control-expose-headers", "x-seq, x-state, x-replay, x-title, etag");
+  res.setHeader("access-control-expose-headers", "x-seq, x-state, x-replay, x-title, x-step, etag");
 };
 
 export default async function handler(req, res) {
@@ -82,7 +84,7 @@ async function post(req, res, run) {
   if (!authorized(req)) return res.status(401).json({ error: "unauthorized" });
   const type = String(req.headers["content-type"] ?? "").split(";")[0].trim();
   // Forget stale runs whenever anyone writes: nothing lives past the TTL.
-  await pool.query(`DELETE FROM live_frames WHERE updated_at < now() - interval '${TTL}'`);
+  await pool.query(`DELETE FROM live_frames WHERE replay_url IS NULL AND updated_at < now() - interval '${TTL}'`);
   if (type === "application/json") {
     const body = JSON.parse((await readBody(req, 10_000)).toString("utf8") || "{}");
     const state = body.state === "failed" ? "failed" : "done";
@@ -99,21 +101,24 @@ async function post(req, res, run) {
   const frame = await readBody(req, MAX_FRAME_BYTES);
   if (frame.length < 100) return res.status(400).json({ error: "empty frame" });
   const title = decodeURIComponent(String(req.headers["x-title"] ?? "")).slice(0, 120) || null;
+  const step = decodeURIComponent(String(req.headers["x-step"] ?? "")).slice(0, 80) || null;
   const { rows } = await pool.query(
-    `INSERT INTO live_frames (run_id, seq, state, title, frame, frame_type) VALUES ($1, 1, 'live', $2, $3, $4)
+    `INSERT INTO live_frames (run_id, seq, state, title, step, frame, frame_type) VALUES ($1, 1, 'live', $2, $5, $3, $4)
      ON CONFLICT (run_id) DO UPDATE SET seq = live_frames.seq + 1, state = 'live', title = coalesce($2, live_frames.title),
-       frame = $3, frame_type = $4, updated_at = now()
+       step = coalesce($5, live_frames.step), frame = $3, frame_type = $4, updated_at = now()
+       WHERE live_frames.state = 'live'
      RETURNING seq`,
-    [run, title, frame, type],
+    [run, title, frame, type, step],
   );
-  return res.status(200).json({ seq: rows[0].seq });
+  // A frame that lands after the run finished is dropped: the run stays done.
+  return res.status(200).json({ seq: rows[0]?.seq ?? 0 });
 }
 
 async function get(req, res, run) {
   const wantFrame = req.query?.frame !== undefined;
   const { rows } = await pool.query(
-    `SELECT seq, state, title, replay_url, frame_type, ${wantFrame ? "frame" : "NULL AS frame"}
-       FROM live_frames WHERE run_id = $1 AND updated_at > now() - interval '${TTL}'`,
+    `SELECT seq, state, title, step, replay_url, frame_type, ${wantFrame ? "frame" : "NULL AS frame"}
+       FROM live_frames WHERE run_id = $1 AND (replay_url IS NOT NULL OR updated_at > now() - interval '${TTL}')`,
     [run],
   );
   const row = rows[0];
@@ -122,10 +127,12 @@ async function get(req, res, run) {
   res.setHeader("x-state", row.state);
   if (row.replay_url) res.setHeader("x-replay", row.replay_url);
   if (row.title) res.setHeader("x-title", encodeURIComponent(row.title));
+  if (row.step) res.setHeader("x-step", encodeURIComponent(row.step));
   if (!wantFrame)
-    return res.status(200).json({ seq: row.seq, state: row.state, title: row.title, replayUrl: row.replay_url });
+    return res.status(200).json({ seq: row.seq, state: row.state, title: row.title, step: row.step, replayUrl: row.replay_url });
   if (!row.frame) return res.status(404).json({ error: "no frame yet" });
-  const etag = `"${row.seq}"`;
+  // The state is part of the tag: a 304 may lose custom headers on the way, so "done" must force a 200.
+  const etag = `"${row.seq}-${row.state}-${row.replay_url ? 1 : 0}"`;
   res.setHeader("etag", etag);
   if (req.headers["if-none-match"] === etag) return res.status(304).end();
   res.setHeader("content-type", row.frame_type || "image/jpeg");

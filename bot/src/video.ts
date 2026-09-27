@@ -23,10 +23,15 @@ export function concatList(frames: string[], secondsPerFrame: number): string {
   return `${lines.join("\n")}\n`;
 }
 
-/** Aim for a 10-20 s clip whatever the run length: long runs play faster. */
+/** Aim for a 6-12 s clip whatever the run length: long runs play faster. The run card waits for one play of
+ * it before it flips to Done, so it stays short. */
+export function replaySeconds(frameCount: number): number {
+  return Math.min(12, Math.max(6, frameCount * 0.08));
+}
+
 export function secondsPerFrame(frameCount: number): number {
-  const target = Math.min(20, Math.max(8, frameCount * 0.12));
-  return Math.max(0.05, Math.min(0.5, target / Math.max(1, frameCount)));
+  const target = replaySeconds(frameCount);
+  return Math.max(1 / 48, Math.min(0.5, target / Math.max(1, frameCount)));
 }
 
 export interface BuiltVideo {
@@ -76,8 +81,8 @@ export async function buildVideo(
     log.warn(`video: ffmpeg failed: ${v.stderr.trim().split("\n").slice(-2).join(" ")}`);
     return null;
   }
-  // Poster: a frame two thirds in, when the work is on screen.
-  const pick = frames[Math.floor(frames.length * 0.66)] ?? frames[0] ?? "";
+  // Poster: the last frame, the finished result (it is also where the live stream left off).
+  const pick = frames[frames.length - 1] ?? "";
   const p = await runner([
     "nice",
     "-n",

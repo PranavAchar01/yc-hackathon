@@ -129,9 +129,29 @@ describe("run card (Apple style)", () => {
       type: "video",
       video_url: "https://x.vercel.app/live?run=abc",
       thumbnail_url: "https://x.vercel.app/api/live/abc?frame=1",
-      title: { type: "plain_text", text: "Triaging issues" },
+      title: { type: "plain_text", text: "Watch live" },
     });
     expect(card.blocks.some((b) => b.type === "image")).toBe(false);
+    // No clock or step line: updating the card would reset a player someone is watching.
+    expect(card.blocks.map((b) => b.type)).toEqual(["section", "video"]);
+  });
+
+  it("done after a live run keeps the same tile, now the replay, with the last frame as thumbnail", () => {
+    const card = runCard(
+      view({
+        procedure: triage,
+        phase: "done",
+        elapsedMs: 86_000,
+        summary: "Labeled #14 bug, P2",
+        replay: { url: "https://x.vercel.app/live?run=abc", thumbnailUrl: "https://blob/runs/triage/1.jpg" },
+      }),
+    );
+    expect(card.blocks.map((b) => b.type)).toEqual(["section", "video", "section"]);
+    expect(card.blocks[1]).toMatchObject({
+      video_url: "https://x.vercel.app/live?run=abc",
+      thumbnail_url: "https://blob/runs/triage/1.jpg",
+      title: { type: "plain_text", text: "Replay  ·  Triaging issues" },
+    });
   });
 
   it("done: Done and the time, two result lines and an Open in GitHub link button", () => {

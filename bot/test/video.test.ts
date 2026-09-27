@@ -26,12 +26,12 @@ describe("run videos", () => {
     expect(list.trim().split("\n").at(-1)).toBe("file '/a/it'\\''s.png'");
   });
 
-  it("paces clips to roughly 8-20 seconds", () => {
+  it("paces clips to roughly 6-12 seconds (the card waits for one play before it flips to Done)", () => {
     for (const n of [10, 60, 150, 400]) {
       const total = n * secondsPerFrame(n);
       expect(total).toBeGreaterThanOrEqual(1);
-      expect(total).toBeLessThanOrEqual(20.5);
+      expect(total).toBeLessThanOrEqual(12.5);
     }
-    expect(150 * secondsPerFrame(150)).toBeGreaterThanOrEqual(8);
+    expect(150 * secondsPerFrame(150)).toBeGreaterThanOrEqual(6);
   });
 });
