@@ -1,0 +1,63 @@
+# Slack app manifest for "Over the Shoulder" (Socket Mode: no public URL needed).
+# Create it at https://api.slack.com/apps > Create New App > From a manifest > pick the workspace > paste this.
+# Published commands are appended to features.slash_commands at runtime via apps.manifest.update.
+display_information:
+  name: Over the Shoulder
+  description: Do a task once while it watches. Then anyone can run it with a slash command.
+  background_color: "#1d1d1f"
+features:
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: true
+  bot_user:
+    display_name: Over the Shoulder
+    always_online: true
+  shortcuts:
+    - name: Save as command
+      type: message
+      callback_id: ots_save_as_command
+      description: Turn this finished run into a command anyone can rerun
+  slash_commands:
+    - command: /teach
+      description: Watch me do a task once, then turn it into a command
+      usage_hint: "[name]"
+      should_escape: false
+    - command: /new
+      description: Describe a command in one sentence
+      usage_hint: "[what it should do]"
+      should_escape: false
+    - command: /do
+      description: Run any command from the library
+      usage_hint: "<command> [notes]"
+      should_escape: false
+    - command: /ots
+      description: Run a learned procedure (same as /do)
+      usage_hint: "<skill>"
+      should_escape: false
+    - command: /commands
+      description: Search your team's commands
+      usage_hint: "[query]"
+      should_escape: false
+    - command: /gtm
+      description: Send the launch emails once the deliverables are forwarded
+      should_escape: false
+    - command: /ship
+      description: Review and merge the release PR, publish release notes, draft the launch email
+      should_escape: false
+oauth_config:
+  scopes:
+    bot:
+      - commands          # slash commands and the message shortcut
+      - chat:write        # post and update the run cards
+      - chat:write.public # post cards in public channels without being invited first
+      - files:write       # upload sandbox screenshots for the live view on the run card
+settings:
+  event_subscriptions:
+    bot_events:
+      - app_home_opened
+  interactivity:
+    is_enabled: true
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false

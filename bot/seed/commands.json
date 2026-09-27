@@ -1,0 +1,938 @@
+{
+  "team": [
+    { "key": "priya", "id": "U0NWPRIYA", "name": "Priya Shah", "team": "ops" },
+    { "key": "mark", "id": "U0NWMARK", "name": "Mark Ellis", "team": "gtm" },
+    { "key": "jordan", "id": "U0NWJORDAN", "name": "Jordan Lee", "team": "eng" },
+    { "key": "sofia", "id": "U0NWSOFIA", "name": "Sofia Ruiz", "team": "finance" },
+    { "key": "ben", "id": "U0NWBEN", "name": "Ben Carter", "team": "eng" },
+    { "key": "aisha", "id": "U0NWAISHA", "name": "Aisha Khan", "team": "support" },
+    { "key": "wren", "id": "U0NWWREN", "name": "Wren Ito", "team": "design" },
+    { "key": "carlos", "id": "U0NWCARLOS", "name": "Carlos Nunez", "team": "gtm" },
+    { "key": "dana", "id": "U0NWDANA", "name": "Dana Whitfield", "team": "people" },
+    { "key": "felix", "id": "U0NWFELIX", "name": "Felix Ngata", "team": "ops" },
+    { "key": "hana", "id": "U0NWHANA", "name": "Hana Petrov", "team": "eng" },
+    { "key": "leo", "id": "U0NWLEO", "name": "Leo Marsh", "team": "finance" },
+    { "key": "maya", "id": "U0NWMAYA", "name": "Maya Osei", "team": "support" },
+    { "key": "tariq", "id": "U0NWTARIQ", "name": "Tariq Bello", "team": "design" }
+  ],
+  "commands": [
+    {
+      "name": "gtm",
+      "title": "GTM launch emails",
+      "description": "Send the launch emails once the deliverables are forwarded",
+      "emoji": ":rocket:",
+      "team": "gtm",
+      "author": "mark",
+      "visibility": "everyone",
+      "registered": "slash",
+      "startUrl": null,
+      "steps": [
+        "Open the deliverables Priya forwarded",
+        "Pull the launch list (12 contacts)",
+        "Match each contact to the right one-pager",
+        "Draft 12 emails in Mark's voice",
+        "Attach the one-pager and launch video link",
+        "Check links and names",
+        "Queue for review"
+      ],
+      "usage": { "mark": 6, "priya": 4, "sofia": 2 }
+    },
+    {
+      "name": "ship",
+      "title": "Ship the release",
+      "description": "Review and merge the release PR, publish release notes, draft the launch email",
+      "emoji": ":package:",
+      "team": "eng",
+      "author": "mark",
+      "visibility": "everyone",
+      "registered": "slash",
+      "startUrl": "https://github.com/pulls",
+      "steps": [
+        "Open the release pull request",
+        "Wait until CI checks are green",
+        "Read the diff and apply Mark's review rules",
+        "Label the PR and approve or request changes",
+        "Merge the pull request",
+        "Draft release notes from the merged changes",
+        "Publish the release",
+        "Draft the launch email with the release link and stop for review"
+      ],
+      "usage": { "mark": 3, "jordan": 2 }
+    },
+    {
+      "name": "standup",
+      "title": "Daily standup summary",
+      "description": "Collect updates and post a summary of yesterday and today",
+      "emoji": ":wave:",
+      "team": "eng",
+      "author": "jordan",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Check the team channel for check-ins",
+        "List yesterday's completed tickets",
+        "List today's planned tickets",
+        "Flag any blockers raised",
+        "Post the standup summary to the channel"
+      ],
+      "usage": { "jordan": 18, "ben": 14, "hana": 10, "priya": 3 }
+    },
+    {
+      "name": "bug-triage",
+      "title": "Bug triage sweep",
+      "description": "Sort new bugs by severity and assign an owner",
+      "emoji": ":rotating_light:",
+      "team": "eng",
+      "author": "ben",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull new bugs filed since yesterday",
+        "Reproduce each bug against staging",
+        "Assign severity and owner to each bug",
+        "Label duplicates and close them",
+        "Post the triage summary for review"
+      ],
+      "usage": { "jordan": 15, "ben": 16, "hana": 11 }
+    },
+    {
+      "name": "code-review",
+      "title": "Code review pass",
+      "description": "Review pending pull requests against the style guide",
+      "emoji": ":mag:",
+      "team": "eng",
+      "author": "jordan",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Open the pending pull requests",
+        "Check tests pass and coverage holds",
+        "Review the diff against the style guide",
+        "Leave comments on any issues found",
+        "Approve or request changes"
+      ],
+      "usage": { "jordan": 10, "ben": 8 }
+    },
+    {
+      "name": "deploy-check",
+      "title": "Pre deploy check",
+      "description": "Confirm a build is safe to promote to production",
+      "emoji": ":hammer_and_wrench:",
+      "team": "eng",
+      "author": "ben",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Confirm the build passed CI",
+        "Check the staging environment is healthy",
+        "Review the rollback plan",
+        "Verify feature flags are set correctly",
+        "Post the go or no go for review"
+      ],
+      "usage": { "ben": 9, "hana": 7 }
+    },
+    {
+      "name": "incident-postmortem",
+      "title": "Incident postmortem draft",
+      "description": "Build the timeline and root cause after an incident closes",
+      "emoji": ":rotating_light:",
+      "team": "eng",
+      "author": "hana",
+      "visibility": "channel",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Gather the incident timeline from logs",
+        "List the root cause and contributing factors",
+        "Note the detection and response times",
+        "Draft the corrective action items",
+        "Draft the postmortem summary for review"
+      ],
+      "usage": { "jordan": 6, "ben": 5, "mark": 1 }
+    },
+    {
+      "name": "changelog",
+      "title": "Weekly changelog draft",
+      "description": "Summarize merged changes into a plain language changelog",
+      "emoji": ":clipboard:",
+      "team": "eng",
+      "author": "jordan",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull merged pull requests since last release",
+        "Group changes by feature, fix and chore",
+        "Write plain language summaries for each entry",
+        "Draft the changelog for review"
+      ],
+      "usage": { "jordan": 8, "mark": 3, "sofia": 1 }
+    },
+    {
+      "name": "oncall-handoff",
+      "title": "On call handoff note",
+      "description": "Summarize open incidents and watch items for the next shift",
+      "emoji": ":telephone_receiver:",
+      "team": "eng",
+      "author": "hana",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Review open incidents from this shift",
+        "List unresolved alerts and their owners",
+        "Note anything to watch overnight",
+        "Draft the handoff note for the next engineer"
+      ],
+      "usage": { "hana": 5, "jordan": 4 }
+    },
+    {
+      "name": "tech-debt-log",
+      "title": "Tech debt log update",
+      "description": "Rank open tech debt items by risk and effort",
+      "emoji": ":clipboard:",
+      "team": "eng",
+      "author": "ben",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Scan the codebase for flagged TODOs",
+        "Check open issues tagged tech debt",
+        "Rank items by risk and effort",
+        "Draft the updated tech debt list for review"
+      ],
+      "usage": { "ben": 6, "hana": 3 }
+    },
+    {
+      "name": "api-docs-sync",
+      "title": "API docs sync check",
+      "description": "Compare the live API against the published docs",
+      "emoji": ":memo:",
+      "team": "eng",
+      "author": "hana",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Compare the API spec against the live endpoints",
+        "Flag any endpoints missing from the docs",
+        "Update parameter and response examples",
+        "Draft the docs changes for review"
+      ],
+      "usage": {}
+    },
+    {
+      "name": "demo-request",
+      "title": "Demo request routing",
+      "description": "Match an inbound demo request to the right rep and confirm a time",
+      "emoji": ":telephone_receiver:",
+      "team": "gtm",
+      "author": "mark",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Check the inbound demo request form",
+        "Match the request to the right rep",
+        "Pull the prospect's company details",
+        "Draft the demo confirmation for review",
+        "Add the meeting to the calendar for review"
+      ],
+      "usage": { "mark": 7, "carlos": 5 }
+    },
+    {
+      "name": "case-study",
+      "title": "Customer case study draft",
+      "description": "Turn a customer's results and quotes into a case study draft",
+      "emoji": ":memo:",
+      "team": "gtm",
+      "author": "carlos",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull the customer's results and quotes",
+        "Check the customer approved the numbers",
+        "Draft the case study outline",
+        "Write the case study draft",
+        "Send the draft to the customer for review"
+      ],
+      "usage": { "carlos": 6, "mark": 2 }
+    },
+    {
+      "name": "competitor-scan",
+      "title": "Competitor scan",
+      "description": "Check competitor pricing and positioning for changes",
+      "emoji": ":mag:",
+      "team": "gtm",
+      "author": "carlos",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Check competitor pricing pages for changes",
+        "Check competitor changelogs and release notes",
+        "Note any new features or positioning",
+        "Draft the competitor scan summary for review"
+      ],
+      "usage": { "carlos": 9 }
+    },
+    {
+      "name": "pricing-quote",
+      "title": "Pricing quote builder",
+      "description": "Build a quote for a prospect based on seats and discount tier",
+      "emoji": ":credit_card:",
+      "team": "gtm",
+      "author": "mark",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull the prospect's requested seat count",
+        "Apply the current pricing tier",
+        "Check for any approved discounts",
+        "Draft the quote for review"
+      ],
+      "usage": { "mark": 5, "sofia": 2 }
+    },
+    {
+      "name": "lead-routing",
+      "title": "Lead routing pass",
+      "description": "Assign new leads to the right rep by territory and segment",
+      "emoji": ":busts_in_silhouette:",
+      "team": "gtm",
+      "author": "carlos",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull new leads from the form",
+        "Match each lead to territory and segment",
+        "Assign each lead to the right rep",
+        "Flag any leads missing key details"
+      ],
+      "usage": { "carlos": 7 }
+    },
+    {
+      "name": "webinar-recap",
+      "title": "Webinar recap draft",
+      "description": "Summarize attendee questions and themes after a webinar",
+      "emoji": ":memo:",
+      "team": "gtm",
+      "author": "mark",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull the attendee list and questions asked",
+        "Note the top themes from the chat",
+        "Draft the recap email for review",
+        "Draft the follow up task list"
+      ],
+      "usage": { "mark": 4, "carlos": 3 }
+    },
+    {
+      "name": "outreach-list",
+      "title": "Outreach list builder",
+      "description": "Build a clean outreach list for a new campaign segment",
+      "emoji": ":envelope:",
+      "team": "gtm",
+      "author": "mark",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull contacts matching the target segment",
+        "Remove contacts already in an active sequence",
+        "Check each contact against the suppression list",
+        "Draft the outreach list for review"
+      ],
+      "usage": { "mark": 8, "carlos": 4 }
+    },
+    {
+      "name": "sales-deck",
+      "title": "Sales deck refresh",
+      "description": "Update the sales deck with current logos, metrics and pricing",
+      "emoji": ":bar_chart:",
+      "team": "gtm",
+      "author": "carlos",
+      "visibility": "channel",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull the latest logos and metrics",
+        "Update the pricing and roadmap slides",
+        "Check the deck against brand guidelines",
+        "Draft the updated deck for review"
+      ],
+      "usage": { "carlos": 5, "mark": 3 }
+    },
+    {
+      "name": "vendor-check",
+      "title": "Vendor spend check",
+      "description": "Review a vendor's contract, spend and service quality",
+      "emoji": ":mag:",
+      "team": "ops",
+      "author": "felix",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull the vendor's contract and renewal date",
+        "Check the vendor's current spend against budget",
+        "Note any service issues this quarter",
+        "Draft the vendor review summary for review"
+      ],
+      "usage": { "felix": 6 }
+    },
+    {
+      "name": "onboard",
+      "title": "New hire onboarding",
+      "description": "Set up accounts, access and the first week schedule for a new hire",
+      "emoji": ":busts_in_silhouette:",
+      "team": "ops",
+      "author": "priya",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Check the new hire's start date and role",
+        "Set up accounts and access requests",
+        "Assign the onboarding buddy",
+        "Schedule the first week of meetings",
+        "Draft the welcome note for review"
+      ],
+      "usage": { "priya": 12, "felix": 6, "dana": 4 }
+    },
+    {
+      "name": "offboard",
+      "title": "Employee offboarding",
+      "description": "Revoke access and collect equipment when someone leaves",
+      "emoji": ":busts_in_silhouette:",
+      "team": "ops",
+      "author": "felix",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Confirm the last working day",
+        "Revoke account and access requests",
+        "Collect any company equipment",
+        "Draft the offboarding checklist confirmation for review"
+      ],
+      "usage": { "felix": 5 }
+    },
+    {
+      "name": "expense-audit",
+      "title": "Expense audit sweep",
+      "description": "Check submitted expenses against receipts and category limits",
+      "emoji": ":receipt:",
+      "team": "ops",
+      "author": "priya",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull this month's submitted expenses",
+        "Flag any missing receipts",
+        "Check spend against category limits",
+        "Draft the audit summary for review"
+      ],
+      "usage": { "priya": 6, "sofia": 3 }
+    },
+    {
+      "name": "travel-request",
+      "title": "Travel request check",
+      "description": "Check a travel request against policy and estimated cost",
+      "emoji": ":calendar:",
+      "team": "ops",
+      "author": "felix",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Check the trip dates and destination",
+        "Check the request against the travel policy",
+        "Note the estimated cost",
+        "Draft the approval note for review"
+      ],
+      "usage": { "felix": 4, "priya": 2 }
+    },
+    {
+      "name": "supply-order",
+      "title": "Office supply order",
+      "description": "Check stock levels and put together a supply order",
+      "emoji": ":package:",
+      "team": "ops",
+      "author": "felix",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Check current office supply levels",
+        "List items running low",
+        "Note the preferred vendor for each item",
+        "Draft the supply order for review"
+      ],
+      "usage": { "felix": 3 }
+    },
+    {
+      "name": "facilities-ticket",
+      "title": "Facilities ticket routing",
+      "description": "Log and route a facilities issue to the right vendor",
+      "emoji": ":clipboard:",
+      "team": "ops",
+      "author": "priya",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Log the facilities issue and location",
+        "Assign a priority level",
+        "Route the ticket to the right vendor",
+        "Note the expected resolution time"
+      ],
+      "usage": {}
+    },
+    {
+      "name": "invoice",
+      "title": "Invoice preparation",
+      "description": "Prepare an invoice from the account's billing details and contract",
+      "emoji": ":receipt:",
+      "team": "finance",
+      "author": "sofia",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull the billing details for the account",
+        "Check the amount against the contract",
+        "Draft the invoice for review",
+        "Log the invoice in the tracker"
+      ],
+      "usage": { "sofia": 14, "leo": 10 }
+    },
+    {
+      "name": "payroll-check",
+      "title": "Payroll run check",
+      "description": "Check hours and rates for this cycle's payroll run",
+      "emoji": ":moneybag:",
+      "team": "finance",
+      "author": "leo",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull this cycle's payroll run",
+        "Check hours and rates against records",
+        "Flag any discrepancies",
+        "Draft the payroll summary for review"
+      ],
+      "usage": { "leo": 9, "sofia": 6 }
+    },
+    {
+      "name": "expense",
+      "title": "Expense reimbursement check",
+      "description": "Check submitted expense reports against receipts and policy",
+      "emoji": ":credit_card:",
+      "team": "finance",
+      "author": "sofia",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull submitted expense reports",
+        "Check receipts against amounts claimed",
+        "Flag anything outside policy",
+        "Draft the reimbursement summary for review"
+      ],
+      "usage": { "sofia": 11, "priya": 5 }
+    },
+    {
+      "name": "budget-review",
+      "title": "Department budget review",
+      "description": "Compare actual spend by department against the approved budget",
+      "emoji": ":bar_chart:",
+      "team": "finance",
+      "author": "leo",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull actual spend by department",
+        "Compare against the approved budget",
+        "Flag departments over or under target",
+        "Draft the budget review notes for review"
+      ],
+      "usage": { "leo": 6, "sofia": 4 }
+    },
+    {
+      "name": "renewals",
+      "title": "Contract renewal check",
+      "description": "Check usage and pricing for contracts renewing this quarter",
+      "emoji": ":calendar:",
+      "team": "finance",
+      "author": "sofia",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull contracts renewing this quarter",
+        "Check usage against the current plan",
+        "Note any pricing changes",
+        "Draft the renewal recommendation for review"
+      ],
+      "usage": { "sofia": 8, "mark": 2 }
+    },
+    {
+      "name": "board-update",
+      "title": "Board update numbers",
+      "description": "Pull revenue and burn numbers into a board update slide",
+      "emoji": ":chart_with_upwards_trend:",
+      "team": "finance",
+      "author": "leo",
+      "visibility": "channel",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull the latest revenue and burn numbers",
+        "Check the numbers against last month",
+        "Draft the board update slide",
+        "Draft the board update notes for review"
+      ],
+      "usage": { "leo": 3, "sofia": 2 }
+    },
+    {
+      "name": "tax-doc",
+      "title": "Tax document request",
+      "description": "Prepare a requested tax document package with sensitive fields redacted",
+      "emoji": ":lock:",
+      "team": "finance",
+      "author": "sofia",
+      "visibility": "me",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull the requested tax documents",
+        "Check the figures against filed records",
+        "Redact any sensitive account numbers",
+        "Draft the document package for review"
+      ],
+      "usage": {}
+    },
+    {
+      "name": "interview-loop",
+      "title": "Interview loop setup",
+      "description": "Schedule interviewers and collect feedback for a candidate",
+      "emoji": ":busts_in_silhouette:",
+      "team": "people",
+      "author": "dana",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull the candidate's resume and notes",
+        "Assign interviewers for each round",
+        "Send the schedule for review",
+        "Collect feedback after each round",
+        "Draft the hiring recommendation for review"
+      ],
+      "usage": { "dana": 9, "jordan": 3, "hana": 2 }
+    },
+    {
+      "name": "referral-bonus",
+      "title": "Referral bonus check",
+      "description": "Confirm a referral bonus is due and prepare the payout request",
+      "emoji": ":moneybag:",
+      "team": "people",
+      "author": "dana",
+      "visibility": "me",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Check the referral was logged correctly",
+        "Confirm the referred hire's start date",
+        "Check the bonus amount against policy",
+        "Draft the payout request for review"
+      ],
+      "usage": { "dana": 5, "ben": 2 }
+    },
+    {
+      "name": "benefits-faq",
+      "title": "Benefits FAQ update",
+      "description": "Refresh answers to common benefits questions",
+      "emoji": ":memo:",
+      "team": "people",
+      "author": "dana",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull the current benefits guide",
+        "Check the plan details are current",
+        "Draft answers to common questions",
+        "Post the FAQ update for review"
+      ],
+      "usage": { "dana": 7 }
+    },
+    {
+      "name": "team-survey",
+      "title": "Team pulse survey",
+      "description": "Draft and send a short team pulse survey",
+      "emoji": ":clipboard:",
+      "team": "people",
+      "author": "dana",
+      "visibility": "channel",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Draft the survey questions",
+        "Check the survey against last quarter's",
+        "Send the survey for review",
+        "Summarize the results once closed"
+      ],
+      "usage": { "dana": 4, "priya": 2 }
+    },
+    {
+      "name": "pto-tracker",
+      "title": "PTO coverage tracker",
+      "description": "Check approved time off for coverage gaps",
+      "emoji": ":calendar:",
+      "team": "people",
+      "author": "dana",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull approved time off requests",
+        "Check for overlapping team absences",
+        "Flag any coverage gaps",
+        "Draft the coverage plan for review"
+      ],
+      "usage": { "dana": 6, "aisha": 3 }
+    },
+    {
+      "name": "culture-pulse",
+      "title": "Culture pulse summary",
+      "description": "Summarize recent feedback and shoutouts into recurring themes",
+      "emoji": ":sparkles:",
+      "team": "people",
+      "author": "dana",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull recent feedback and shoutouts",
+        "Note recurring themes",
+        "Compare against last quarter's summary",
+        "Draft the culture pulse summary for review"
+      ],
+      "usage": {}
+    },
+    {
+      "name": "customer-recap",
+      "title": "Customer account recap",
+      "description": "Summarize an account's ticket history and current sentiment",
+      "emoji": ":memo:",
+      "team": "support",
+      "author": "aisha",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull the ticket history for the account",
+        "Note the resolution and any open issues",
+        "Check the customer's sentiment in recent replies",
+        "Draft the recap for review"
+      ],
+      "usage": { "aisha": 13, "maya": 9 }
+    },
+    {
+      "name": "churn-save",
+      "title": "Churn save outreach",
+      "description": "Prepare a save offer for an at risk account",
+      "emoji": ":rotating_light:",
+      "team": "support",
+      "author": "maya",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull the account's usage trend",
+        "Check for recent support escalations",
+        "Draft the save offer for review",
+        "Log the outcome once the call happens"
+      ],
+      "usage": { "maya": 8, "aisha": 6, "mark": 1 }
+    },
+    {
+      "name": "ticket-triage",
+      "title": "Support ticket triage",
+      "description": "Sort new tickets by severity and route to the right owner",
+      "emoji": ":mag:",
+      "team": "support",
+      "author": "aisha",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull new tickets from the queue",
+        "Assign severity and owner to each ticket",
+        "Flag anything needing engineering",
+        "Post the triage summary for review"
+      ],
+      "usage": { "aisha": 15, "maya": 10 }
+    },
+    {
+      "name": "feedback-digest",
+      "title": "Customer feedback digest",
+      "description": "Group this week's customer feedback into themes",
+      "emoji": ":clipboard:",
+      "team": "support",
+      "author": "maya",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull this week's customer feedback",
+        "Group feedback by theme",
+        "Note the most requested items",
+        "Draft the digest for review"
+      ],
+      "usage": { "maya": 5, "aisha": 4 }
+    },
+    {
+      "name": "sla-check",
+      "title": "SLA compliance check",
+      "description": "Compare response and resolution times against SLA targets",
+      "emoji": ":chart_with_upwards_trend:",
+      "team": "support",
+      "author": "aisha",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull response and resolution times",
+        "Compare against the SLA targets",
+        "Flag any tickets breaching SLA",
+        "Draft the SLA summary for review"
+      ],
+      "usage": { "aisha": 6, "maya": 3 }
+    },
+    {
+      "name": "escalation",
+      "title": "Support escalation summary",
+      "description": "Summarize a ticket for escalation and note who needs to be looped in",
+      "emoji": ":rotating_light:",
+      "team": "support",
+      "author": "maya",
+      "visibility": "channel",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull the ticket history and prior replies",
+        "Check the severity against the escalation policy",
+        "Note who needs to be looped in",
+        "Draft the escalation summary for review"
+      ],
+      "usage": {}
+    },
+    {
+      "name": "design-review",
+      "title": "Design review pass",
+      "description": "Review new design files against the component library",
+      "emoji": ":art:",
+      "team": "design",
+      "author": "wren",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Pull the latest design files",
+        "Check against the component library",
+        "Note accessibility issues",
+        "Leave comments for the designer",
+        "Draft the review summary for review"
+      ],
+      "usage": { "wren": 7, "tariq": 5 }
+    },
+    {
+      "name": "brand-assets",
+      "title": "Brand asset delivery",
+      "description": "Pull and export the right templates for a brand asset request",
+      "emoji": ":art:",
+      "team": "design",
+      "author": "tariq",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Check the request against brand guidelines",
+        "Pull the right templates and assets",
+        "Export the requested formats",
+        "Draft the delivery note for review"
+      ],
+      "usage": { "tariq": 9, "wren": 4, "mark": 2 }
+    },
+    {
+      "name": "asset-request",
+      "title": "Design asset request",
+      "description": "Log and assign an incoming design asset request",
+      "emoji": ":package:",
+      "team": "design",
+      "author": "wren",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Log the requested asset and deadline",
+        "Check for an existing asset that fits",
+        "Assign the request to a designer",
+        "Note the delivery date"
+      ],
+      "usage": {}
+    },
+    {
+      "name": "style-audit",
+      "title": "Style guide audit",
+      "description": "Scan pages for colors and type that drift from the style guide",
+      "emoji": ":mag:",
+      "team": "design",
+      "author": "tariq",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Scan pages against the style guide",
+        "Flag inconsistent colors and type",
+        "Note components needing an update",
+        "Draft the audit summary for review"
+      ],
+      "usage": { "tariq": 6, "wren": 3 }
+    },
+    {
+      "name": "user-test",
+      "title": "User test session",
+      "description": "Recruit participants and run a short usability test",
+      "emoji": ":busts_in_silhouette:",
+      "team": "design",
+      "author": "wren",
+      "visibility": "everyone",
+      "registered": "router",
+      "startUrl": null,
+      "steps": [
+        "Recruit participants matching the target profile",
+        "Draft the test script",
+        "Run the sessions and take notes",
+        "Summarize findings by theme",
+        "Draft the recommendations for review"
+      ],
+      "usage": { "wren": 5, "tariq": 2, "aisha": 1 }
+    }
+  ]
+}

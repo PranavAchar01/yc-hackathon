@@ -1,0 +1,10 @@
+qm/
+node_modules/
+.env
+.env.*
+!qm-config/*.env.example
+*.log
+.DS_Store
+bot/.stage/
+bot/.sandbox/
+bot/.gbrain-pages/

@@ -1,0 +1,27 @@
+# Local Postgres for Over the Shoulder + a local QM dev instance.
+# Separate from JobPilot's Postgres: own project name, own container, own volume, port 5544.
+# Start:  docker compose -f qm-config/docker-compose.yml up -d
+# Stop:   docker compose -f qm-config/docker-compose.yml stop     (never touches jobpilot-*)
+name: over-the-shoulder
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ots-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ots
+      # Local-only dev password on a loopback-bound port. Not a secret; change it if you expose the port.
+      POSTGRES_PASSWORD: ots
+      POSTGRES_DB: ots
+    ports:
+      - "127.0.0.1:5544:5432"
+    volumes:
+      - ots-pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ots -d ots"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  ots-pgdata:
