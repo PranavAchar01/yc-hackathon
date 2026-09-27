@@ -1,0 +1,256 @@
+{
+  "at": "2026-09-26T23:35:50.002Z",
+  "skills": [
+    {
+      "name": "standup",
+      "owner": "github",
+      "chars": 434
+    },
+    {
+      "name": "bug-triage",
+      "owner": null,
+      "chars": 230
+    },
+    {
+      "name": "triage",
+      "owner": "github",
+      "chars": 908
+    },
+    {
+      "name": "gtm",
+      "owner": null,
+      "chars": 287
+    },
+    {
+      "name": "announce",
+      "owner": "gmail",
+      "chars": 549
+    },
+    {
+      "name": "create-release",
+      "owner": "github",
+      "chars": 363
+    },
+    {
+      "name": "ship",
+      "owner": null,
+      "chars": 1034
+    },
+    {
+      "name": "deploys",
+      "owner": "vercel",
+      "chars": 607
+    },
+    {
+      "name": "api-docs-sync",
+      "owner": null,
+      "chars": 217
+    },
+    {
+      "name": "asset-request",
+      "owner": null,
+      "chars": 187
+    },
+    {
+      "name": "benefits-faq",
+      "owner": null,
+      "chars": 186
+    },
+    {
+      "name": "brand-assets",
+      "owner": null,
+      "chars": 198
+    },
+    {
+      "name": "budget-review",
+      "owner": null,
+      "chars": 207
+    },
+    {
+      "name": "case-study",
+      "owner": null,
+      "chars": 240
+    },
+    {
+      "name": "changelog",
+      "owner": null,
+      "chars": 216
+    },
+    {
+      "name": "churn-save",
+      "owner": null,
+      "chars": 190
+    },
+    {
+      "name": "code-review",
+      "owner": null,
+      "chars": 224
+    },
+    {
+      "name": "competitor-scan",
+      "owner": null,
+      "chars": 224
+    },
+    {
+      "name": "culture-pulse",
+      "owner": null,
+      "chars": 196
+    },
+    {
+      "name": "customer-recap",
+      "owner": null,
+      "chars": 215
+    },
+    {
+      "name": "demo-request",
+      "owner": null,
+      "chars": 249
+    },
+    {
+      "name": "deploy-check",
+      "owner": null,
+      "chars": 221
+    },
+    {
+      "name": "design-review",
+      "owner": null,
+      "chars": 218
+    },
+    {
+      "name": "expense",
+      "owner": null,
+      "chars": 199
+    },
+    {
+      "name": "expense-audit",
+      "owner": null,
+      "chars": 189
+    },
+    {
+      "name": "facilities-ticket",
+      "owner": null,
+      "chars": 198
+    },
+    {
+      "name": "feedback-digest",
+      "owner": null,
+      "chars": 179
+    },
+    {
+      "name": "interview-loop",
+      "owner": null,
+      "chars": 241
+    },
+    {
+      "name": "invoice",
+      "owner": null,
+      "chars": 188
+    },
+    {
+      "name": "lead-routing",
+      "owner": null,
+      "chars": 191
+    },
+    {
+      "name": "offboard",
+      "owner": null,
+      "chars": 201
+    },
+    {
+      "name": "onboard",
+      "owner": null,
+      "chars": 229
+    },
+    {
+      "name": "oncall-handoff",
+      "owner": null,
+      "chars": 213
+    },
+    {
+      "name": "outreach-list",
+      "owner": null,
+      "chars": 228
+    },
+    {
+      "name": "payroll-check",
+      "owner": null,
+      "chars": 181
+    },
+    {
+      "name": "pricing-quote",
+      "owner": null,
+      "chars": 189
+    },
+    {
+      "name": "pto-tracker",
+      "owner": null,
+      "chars": 180
+    },
+    {
+      "name": "renewals",
+      "owner": null,
+      "chars": 196
+    },
+    {
+      "name": "sla-check",
+      "owner": null,
+      "chars": 183
+    },
+    {
+      "name": "style-audit",
+      "owner": null,
+      "chars": 189
+    },
+    {
+      "name": "supply-order",
+      "owner": null,
+      "chars": 186
+    },
+    {
+      "name": "tech-debt-log",
+      "owner": null,
+      "chars": 201
+    },
+    {
+      "name": "ticket-triage",
+      "owner": null,
+      "chars": 199
+    },
+    {
+      "name": "travel-request",
+      "owner": null,
+      "chars": 197
+    },
+    {
+      "name": "user-test",
+      "owner": null,
+      "chars": 222
+    },
+    {
+      "name": "vendor-check",
+      "owner": null,
+      "chars": 225
+    },
+    {
+      "name": "webinar-recap",
+      "owner": null,
+      "chars": 195
+    }
+  ],
+  "memories": {
+    "github": [
+      82,
+      110,
+      67
+    ],
+    "gmail": [
+      118,
+      108
+    ],
+    "vercel": [
+      108
+    ]
+  },
+  "generalistChars": 12992,
+  "teamChars": 794
+}

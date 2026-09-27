@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Over the Shoulder</title>
+<meta name="description" content="A team of agents in Slack: every skill owned by the agent for its tool, with only the memory it needs.">
+<!-- Pitch deck. Click, Space or → to build/advance, ← to go back, F for full screen. ?auto plays it on a timer.
+     window.seek(t) lays out time t for the frame-exact renderer (film/tools/render.mts). -->
+<style>
+:root{
+  --bg:#f5f5f7; --ink:#1d1d1f; --ink2:#6e6e73; --ink3:#a1a1a6; --line:rgba(0,0,0,.08); --card:#fff;
+  --router:#4a154b; --github:#24292f; --gmail:#ea4335; --vercel:#000; --good:#2eb67d;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 18px 50px rgba(0,0,0,.09);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+code,.cmd{font-family:"SF Mono",ui-monospace,Menlo,monospace}
+/* 1920x1080 stage, scaled to the window */
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center;overflow:hidden;background:var(--bg)}
+.slide{position:absolute;inset:0;padding:120px 150px;opacity:0;visibility:hidden;transition:opacity .5s ease,visibility 0s .5s}
+.slide.on{opacity:1;visibility:visible;transition:opacity .5s ease}
+h1{font-size:150px;font-weight:700;letter-spacing:-.05em;line-height:.95}
+h2{font-size:88px;font-weight:700;letter-spacing:-.04em;line-height:1.02;max-width:1400px}
+h2 .soft{color:var(--ink3)}
+.lede{font-size:38px;line-height:1.3;color:var(--ink2);font-weight:500;margin-top:30px;max-width:1150px;letter-spacing:-.01em}
+/* build steps: [data-b="n"] appears at build n */
+[data-b]{opacity:0;transform:translateY(22px);transition:opacity .55s cubic-bezier(.2,.8,.2,1),transform .55s cubic-bezier(.2,.8,.2,1)}
+[data-b].in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* title */
+#s-title{display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:170px}
+#s-title .lede{max-width:1000px}
+#s-title .by{position:absolute;left:150px;top:120px;font-size:26px;color:var(--ink2);font-weight:600}
+
+/* news pop-ups (B-roll) */
+.news{position:absolute;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 30px 80px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.06)}
+.news img{display:block;width:100%}
+.news figcaption{position:absolute;left:14px;bottom:12px;font-size:17px;font-weight:600;color:#fff;background:rgba(20,20,24,.72);padding:6px 11px;border-radius:7px}
+
+/* the context stack: skill strips */
+.stacks{position:absolute;left:150px;right:150px;top:380px;bottom:110px}
+.agent{position:absolute;bottom:0;width:340px;display:flex;flex-direction:column;align-items:center}
+.agent .who{margin-top:20px;font-size:30px;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:12px}
+.agent .who i{width:16px;height:16px;border-radius:50%;background:var(--c)}
+.agent .note{font-size:22px;color:var(--ink2);margin-top:6px;font-weight:500}
+.strip{position:absolute;height:13px;border-radius:4px;background:var(--c);transition:left .9s cubic-bezier(.2,.8,.2,1),top .9s cubic-bezier(.2,.8,.2,1),width .9s cubic-bezier(.2,.8,.2,1),opacity .6s,background .6s}
+.strip.mem{opacity:.35}
+.meter{position:absolute;right:150px;top:130px;text-align:right;max-width:420px}
+#s-generalist h2,#s-team h2{max-width:1120px;font-size:76px}
+.meter b{display:block;font-size:120px;font-weight:700;letter-spacing:-.05em;font-variant-numeric:tabular-nums}
+.meter span{font-size:26px;color:var(--ink2);font-weight:500}
+
+/* demo video framed like a Mac window */
+.window{position:absolute;left:150px;right:150px;top:280px;bottom:90px;border-radius:18px;overflow:hidden;background:#1a1d21;box-shadow:var(--shadow),0 0 0 1px rgba(0,0,0,.08)}
+.window video{width:100%;height:100%;object-fit:contain;display:block;background:#1a1d21}
+
+/* measured bars */
+.bars{margin-top:70px;display:grid;gap:34px;max-width:1500px}
+.bar{display:grid;grid-template-columns:360px 1fr 220px;align-items:center;gap:30px}
+.bar .k{font-size:32px;font-weight:600}
+.bar .track{height:56px;border-radius:14px;background:rgba(0,0,0,.05);overflow:hidden}
+.bar .fill{height:100%;width:0;border-radius:14px;background:var(--c);transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
+.bar .v{font-size:40px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;text-align:right}
+.pending{margin-top:40px;font-size:26px;color:var(--ink2)}
+
+/* built today */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:90px;margin-top:70px;max-width:1550px}
+.cols h3{font-size:30px;font-weight:700;margin-bottom:22px;letter-spacing:-.01em}
+.cols li{list-style:none;font-size:30px;line-height:1.35;color:var(--ink2);padding:12px 0;border-top:1px solid var(--line)}
+.cols li b{color:var(--ink);font-weight:600}
+
+#s-close{display:flex;flex-direction:column;justify-content:center}
+.url{margin-top:44px;font-size:32px;font-weight:600;color:var(--router)}
+
+/* presenter hint, hidden while rendering */
+#hint{position:fixed;right:18px;bottom:14px;font:500 13px -apple-system,system-ui;color:#86868b;opacity:.8}
+.render #hint{display:none}
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <section class="slide" id="s-title">
+    <div class="by">Startup Speedrun Hackathon, Cloudflare SF</div>
+    <h1 data-b="0">Over the Shoulder</h1>
+    <p class="lede" data-b="0">Show your team's work once. A team of agents in Slack takes it from there, each one owning the skills for its tool.</p>
+  </section>
+
+  <section class="slide" id="s-problem">
+    <h2 data-b="0">Computer-use agents re-read everything, on every step.</h2>
+    <div id="news"></div>
+  </section>
+
+  <section class="slide" id="s-generalist">
+    <h2 data-b="0">One generalist carries every skill <span class="soft">and every memory, on every call.</span></h2>
+    <div class="meter" data-b="1"><b id="gen-meter">0</b><span>characters of skills and notes, re-sent on every model call</span></div>
+    <div class="stacks" id="stacks"></div>
+  </section>
+
+  <section class="slide" id="s-team">
+    <h2 data-b="0">A team: each agent owns its skills <span class="soft">and remembers only what it needs.</span></h2>
+    <div class="meter" data-b="1"><b id="team-meter">0</b><span>characters of skills and notes per call, for the agent that owns the skill</span></div>
+  </section>
+
+  <section class="slide" id="s-demo">
+    <h2 data-b="0" style="font-size:64px">“Ship v1.2 and tell the launch list.”</h2>
+    <div class="window" data-b="0"><video id="demo" src="media/team-demo.mp4" muted playsinline preload="auto"></video></div>
+  </section>
+
+  <section class="slide" id="s-measured">
+    <h2 data-b="0">Measured on real runs.</h2>
+    <div class="bars" id="bars"></div>
+    <p class="pending" id="pending" data-b="1"></p>
+  </section>
+
+  <section class="slide" id="s-built">
+    <h2 data-b="0">What we built</h2>
+    <div class="cols">
+      <div data-b="1"><h3>Before today</h3><ul>
+        <li><b>Show it once</b>: /teach, /learn from a video, /new</li>
+        <li><b>Real browser runs</b> on GitHub, Vercel and Gmail</li>
+        <li><b>Live view</b> of the agent inside the Slack card</li>
+        <li><b>A library</b> of every learned command</li></ul></div>
+      <div data-b="2"><h3>Today</h3><ul id="today">
+        <li><b>A team</b> of agents, one per tool</li>
+        <li><b>A router</b> that plans across them in Slack</li>
+        <li><b>Scoped memory</b> each agent keeps for itself</li>
+        <li><b>A token meter</b> on every run</li></ul></div>
+    </div>
+  </section>
+
+  <section class="slide" id="s-close">
+    <h1 data-b="0" style="font-size:120px">Show it once.<br><span style="color:var(--ink3)">Your team of agents runs it.</span></h1>
+    <div class="url" data-b="1">over-the-shoulder-brown.vercel.app</div>
+  </section>
+</div>
+<div id="hint">→ next · ← back · F full screen</div>
+
+<script>
+(async () => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const stage = $("#stage");
+  const fit = () => { const k = Math.min(innerWidth / 1920, innerHeight / 1080); stage.style.transform = `translate(-50%,-50%) scale(${k})`; };
+  addEventListener("resize", fit); fit();
+
+  // ---- data: the real library (skills per agent) and, when measured, the benchmark
+  const AGENTS = [
+    { id: "router", name: "Router", c: "var(--router)" },
+    { id: "github", name: "GitHub agent", c: "var(--github)" },
+    { id: "gmail", name: "Gmail agent", c: "var(--gmail)" },
+    { id: "vercel", name: "Vercel agent", c: "var(--vercel)" },
+  ];
+  const data = await fetch("data/deck.json").then((r) => r.json()).catch(() => null);
+  const skills = data?.skills ?? [];           // [{name, owner|null, chars}]
+  const memories = data?.memories ?? {};       // {agent: [chars...]}
+  const bench = await fetch("data/token-bench.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+
+  // ---- news pop-ups (filled from data/sources.json when present)
+  const sources = await fetch("data/sources.json").then((r) => (r.ok ? r.json() : [])).catch(() => []);
+  const spots = [[150, 330, 820, -1.4], [1000, 360, 760, 1.1], [520, 520, 820, -0.5], [1080, 600, 680, 0.8]];
+  $("#news").innerHTML = sources.slice(0, 4).map((s, i) => {
+    const [x, y, w, r] = spots[i];
+    return `<figure class="news" data-b="${i + 1}" style="left:${x}px;top:${y}px;width:${w}px;rotate:${r}deg"><img src="${s.img}" alt="${s.title}"><figcaption>${s.outlet}</figcaption></figure>`;
+  }).join("");
+
+  // ---- the context stack: one strip per skill and per memory note, laid out for the generalist, then the team
+  const box = $("#stacks");
+  const W = 1620, H = 590;
+  const pos = { generalist: [W / 2 - 170], router: [0], github: [430], gmail: [860], vercel: [1290] };
+  const strips = [];
+  const addStrip = (owner, kind, c) => { const el = document.createElement("div"); el.className = `strip${kind === "mem" ? " mem" : ""}`; box.appendChild(el); strips.push({ el, owner, kind, c }); };
+  for (const s of skills) addStrip(s.owner, "skill", s.owner ? AGENTS.find((a) => a.id === s.owner).c : "var(--ink3)");
+  // the router's whole view: one short line per team skill
+  for (const s of skills.filter((k) => k.owner)) addStrip("router", "line", "var(--router)");
+  for (const [a, list] of Object.entries(memories)) for (const _ of list) addStrip(a, "mem", AGENTS.find((x) => x.id === a).c);
+  const labels = {};
+  for (const [id, x] of Object.entries(pos)) {
+    const a = id === "generalist" ? { name: "One generalist agent", c: "var(--ink)" } : AGENTS.find((q) => q.id === id);
+    const el = document.createElement("div"); el.className = "agent"; el.style.left = `${x[0]}px`; el.style.setProperty("--c", a.c);
+    el.innerHTML = `<div class="who"><i></i>${a.name}</div><div class="note"></div>`;
+    el.style.opacity = 0; el.style.transition = "opacity .6s"; box.appendChild(el); labels[id] = el;
+  }
+  const layStack = (mode) => {
+    // generalist: everything in one tall column; team: each strip flies to its owner (skills without a site fade out)
+    const cols = {};
+    for (const s of strips) {
+      const col = mode === "generalist" ? (s.kind === "line" ? null : "generalist") : s.owner ?? null;
+      if (!col) { s.el.style.opacity = 0; continue; }
+      const k = (cols[col] = (cols[col] ?? 0) + 1) - 1;
+      // the generalist's pile is dense (every skill and note); a worker's is a handful, spaced out
+      const step = mode === "generalist" ? 8.5 : 16;
+      s.el.style.opacity = s.kind === "mem" ? .35 : s.kind === "line" ? .55 : 1;
+      s.el.style.height = mode === "generalist" ? "6px" : s.kind === "line" ? "6px" : "13px";
+      s.el.style.left = `${pos[col][0] + 20 + (s.kind === "line" ? 60 : 0)}px`;
+      s.el.style.width = s.kind === "line" ? "180px" : "300px";
+      s.el.style.top = `${H - 110 - k * step}px`;
+      s.el.style.background = mode === "generalist" ? (s.kind === "mem" ? "var(--ink3)" : "var(--ink)") : s.c;
+    }
+    for (const [id, el] of Object.entries(labels)) {
+      const show = mode === "generalist" ? id === "generalist" : id !== "generalist";
+      el.style.opacity = show ? 1 : 0;
+      const n = cols[id] ?? 0;
+      el.querySelector(".note").textContent = id === "router" ? "one line per skill" : n ? `${n} skills and notes` : "";
+    }
+  };
+  const hide = () => strips.forEach((s) => (s.el.style.opacity = 0));
+  // the stack sits on slide 3; slide 4 re-uses the same box
+  const teamSlide = $("#s-team"); const genSlide = $("#s-generalist");
+  const countUp = (el, to) => { const t0 = performance.now(); const tick = (t) => { const p = Math.min(1, (t - t0) / 1200); el.textContent = Math.round(to * (1 - Math.pow(1 - p, 3))).toLocaleString(); if (p < 1) requestAnimationFrame(tick); }; requestAnimationFrame(tick); };
+
+  // ---- measured bars
+  if (bench?.summary?.length) {
+    $("#bars").innerHTML = bench.summary.map((r, i) => {
+      const max = Math.max(r.generalistMean, r.teamMean);
+      return `<div class="bar" data-b="${i + 1}" style="--c:var(--ink)"><div class="k"><code>/${r.skill}</code>, one generalist</div><div class="track"><div class="fill" data-w="${(100 * r.generalistMean) / max}"></div></div><div class="v">${(r.generalistMean / 1000).toFixed(1)}k</div></div>
+              <div class="bar" data-b="${i + 1}" style="--c:var(--good)"><div class="k"><code>/${r.skill}</code>, its agent</div><div class="track"><div class="fill" data-w="${(100 * r.teamMean) / max}"></div></div><div class="v">${(r.teamMean / 1000).toFixed(1)}k</div></div>`;
+    }).join("");
+    $("#pending").textContent = `Tokens per run, as billed by the API. ${bench.model}, mean of ${bench.summary[0].n[0]} runs each.`;
+  } else $("#pending").textContent = "Benchmark runs pending: real runs, same task, same model, both ways.";
+
+  // ---- navigation: each slide has builds 0..max(data-b)
+  const slides = [...document.querySelectorAll(".slide")];
+  const builds = slides.map((s) => Math.max(0, ...[...s.querySelectorAll("[data-b]")].map((e) => +e.dataset.b)));
+  let si = 0, bi = 0;
+  const onEnter = {
+    "s-generalist": (b) => { if (b >= 0) { box.parentElement !== genSlide && genSlide.appendChild(box); layStack("generalist"); } if (b === 1) countUp($("#gen-meter"), data?.generalistChars ?? 0); },
+    "s-team": (b) => { teamSlide.appendChild(box); if (b >= 1 || b === 0) layStack("team"); if (b === 1) countUp($("#team-meter"), data?.teamChars ?? 0); },
+    "s-demo": (b) => { const v = $("#demo"); v.currentTime = 0; v.play().catch(() => {}); },
+    "s-measured": () => document.querySelectorAll(".bar.in .fill").forEach((f) => (f.style.width = `${f.dataset.w}%`)),
+  };
+  function show() {
+    slides.forEach((s, i) => s.classList.toggle("on", i === si));
+    const s = slides[si];
+    s.querySelectorAll("[data-b]").forEach((e) => e.classList.toggle("in", +e.dataset.b <= bi));
+    onEnter[s.id]?.(bi);
+    if (!["s-generalist", "s-team"].includes(s.id)) hide();
+    history.replaceState(null, "", `#${si + 1}.${bi}`);
+  }
+  const next = () => { if (bi < builds[si]) bi++; else if (si < slides.length - 1) { si++; bi = 0; } show(); };
+  const prev = () => { if (bi > 0) bi--; else if (si > 0) { si--; bi = builds[si]; } show(); };
+  addEventListener("keydown", (e) => {
+    if (["ArrowRight", " ", "PageDown", "Enter"].includes(e.key)) { e.preventDefault(); next(); }
+    if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); prev(); }
+    if (e.key === "f" || e.key === "F") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  });
+  addEventListener("click", next);
+  const jump = () => { const m = /^#(\d+)\.(\d+)$/.exec(location.hash); if (m) { si = Math.min(slides.length - 1, +m[1] - 1); bi = Math.min(+m[2], builds[si]); } };
+  jump(); show();
+  addEventListener("hashchange", () => { jump(); show(); });
+  // ?auto: advance on a timer (for a rehearsal or a screen recording)
+  if (new URLSearchParams(location.search).has("auto")) setInterval(next, 3200);
+  window.deckReady = true;
+})();
+</script>
+</body>
+</html>

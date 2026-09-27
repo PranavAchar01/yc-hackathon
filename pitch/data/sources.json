@@ -1,0 +1,6 @@
+[
+  { "img": "media/news/a16z.jpg", "outlet": "a16z, Aug 2026", "title": "Can Agents Use a Computer Yet? We've Got the Data", "url": "https://a16z.com/can-agents-use-a-computer-yet-weve-got-the-data/" },
+  { "img": "media/news/tooluse.jpg", "outlet": "Anthropic Engineering, Nov 2025", "title": "Introducing advanced tool use on the Claude Developer Platform", "url": "https://www.anthropic.com/engineering/advanced-tool-use" },
+  { "img": "media/news/contextrot.jpg", "outlet": "Chroma Research, Jul 2025", "title": "Context Rot: How Increasing Input Tokens Impacts LLM Performance", "url": "https://www.trychroma.com/research/context-rot" },
+  { "img": "media/news/skills.jpg", "outlet": "Anthropic Engineering, Oct 2025", "title": "Equipping agents for the real world with Agent Skills", "url": "https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills" }
+]
