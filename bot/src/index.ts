@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { type AgentMemory, InMemoryAgentMemory, PgAgentMemory } from "./agents/team.ts";
 import { createApiServer, type HealthLine } from "./api.ts";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
@@ -214,11 +215,20 @@ log.info(
   live ? `Live view: video via ${config.OTS_LIVE_BASE}/live` : "Live view: Slack images (no OTS_LIVE_SECRET)",
 );
 
+// Team mode: per-agent memory next to the library; the router runs on the fast model.
+const memory: AgentMemory =
+  library.kind === "postgres" ? new PgAgentMemory(config.OTS_DATABASE_URL) : new InMemoryAgentMemory();
+const routerLlm = config.OPENAI_API_KEY
+  ? new OpenAIProvider(config.OPENAI_API_KEY, config.OTS_OPENAI_FAST_MODEL ?? config.OTS_OPENAI_MODEL)
+  : llm;
+
 const { app, state } = createApp({
   config,
   sender,
   publishVideo,
   live,
+  memory,
+  routerLlm,
   executor,
   extractor,
   drafter,

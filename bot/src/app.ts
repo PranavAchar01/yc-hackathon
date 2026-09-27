@@ -13,6 +13,15 @@ import {
   type SlashCommand,
 } from "@slack/bolt";
 import {
+  type AgentId,
+  type AgentMemory,
+  agentName,
+  lessonFrom,
+  ownerOf,
+  roster,
+  route,
+} from "./agents/team.ts";
+import {
   ACTIONS,
   type Card,
   currentStep,
@@ -35,6 +44,7 @@ import {
   teachLearningCard,
   teachRecordingCard,
   teachReviewCard,
+  teamPlanBlocks,
   verbTitle,
 } from "./blocks.ts";
 import { ScreenRecorder } from "./capture.ts";
@@ -48,6 +58,7 @@ import { commandsMessage, HOME_SEARCH, homeView, publishedMessage } from "./home
 import { cleanStartUrl, parseVideoUrl, type VideoLearner } from "./learn.ts";
 import { type CommandLibrary, type CommandRecord, canSee, invocation } from "./library/types.ts";
 import { FramePump, type LiveRelay, newLiveRunId } from "./live.ts";
+import type { LlmProvider } from "./llm.ts";
 import { log } from "./log.ts";
 import {
   CALLBACKS,
@@ -63,6 +74,7 @@ import {
 import { loadSkill, type Procedure, skillPath, toSkillName } from "./procedure.ts";
 import type { Publisher } from "./publish.ts";
 import type { CommandSearch } from "./search.ts";
+import { metered, totalTokens } from "./usage.ts";
 
 type WebClient = App["client"];
 
@@ -87,6 +99,10 @@ export interface Deps {
   publishVideo?: (command: string, framesDir: string) => Promise<PublishedVideo | null>;
   /** Live video relay on the site. Absent: the card shows the screenshot image instead. */
   live?: LiveRelay | null;
+  /** Memory scoped per worker agent (team mode). */
+  memory?: AgentMemory | null;
+  /** Model for the team router (cheap, structured). */
+  routerLlm?: LlmProvider | null;
 }
 
 export interface PublishedVideo {
@@ -666,20 +682,23 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     client: WebClient,
     skillRaw: string,
     extra: string,
-  ) {
+  ): Promise<RunView | null> {
     let skill: string;
     try {
       skill = toSkillName(skillRaw);
     } catch {
       await respond({ response_type: "ephemeral", text: "Usage: `/do <command>`" });
-      return;
+      return null;
     }
     const found = await resolveCommand(skill, command.user_id, command.channel_id);
     if (!found) {
       await respond({ response_type: "ephemeral", ...notFoundCard(skill) });
-      return;
+      return null;
     }
     const { procedure, record } = found;
+    // The worker agent that owns this skill runs it, with only its own memory.
+    const owner = record ? ownerOf(record) : null;
+    const memory = owner && deps.memory ? await deps.memory.recall(owner).catch(() => undefined) : undefined;
     const view: RunView = {
       runId: "",
       procedure,
@@ -690,9 +709,10 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
       drafts: [],
       invoke: record ? invocation(record) : `/do ${procedure.name}`,
       ...(record?.startUrl ? { startUrl: record.startUrl } : {}),
+      ...(owner ? { agent: agentName(owner) } : {}),
     };
     const card = await postCard(client, command.channel_id, runCard(view), respond);
-    if (!card) return;
+    if (!card) return null;
     view.runId = `${card.channel}:${card.ts}`;
     runs.set(view.runId, { view, card, skillFile: skillPath(config.skillsDir, skill), busy: false });
 
@@ -768,27 +788,32 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     let executedBy: string = deps.executor.name;
     let framesDir: string | undefined;
     try {
-      const result = await deps.executor.run(
-        {
-          procedure,
-          userId: command.user_id,
-          threadRef: view.runId,
-          extra,
-          startUrl: record?.startUrl ?? null,
-        },
-        async (ev) => {
-          if (ev.kind === "step") {
-            view.steps[ev.index] = ev.state;
-            if (ev.note) view.notes[ev.index] = ev.note;
-            void refresh();
-          } else if (ev.kind === "needs_you") {
-            view.needsYou = ev.message;
-          } else if (ev.kind === "screenshot") {
-            if (pump && mode === "video") pump.offer(ev.path);
-            else if (!uploading && Date.now() - lastUpload >= imageEvery) void uploadImage(ev.path);
-          }
-        },
+      const { result, usage } = await metered(() =>
+        deps.executor.run(
+          {
+            procedure,
+            userId: command.user_id,
+            threadRef: view.runId,
+            extra,
+            startUrl: record?.startUrl ?? null,
+            ...(owner ? { agent: agentName(owner) } : {}),
+            ...(memory ? { memory } : {}),
+          },
+          async (ev) => {
+            if (ev.kind === "step") {
+              view.steps[ev.index] = ev.state;
+              if (ev.note) view.notes[ev.index] = ev.note;
+              void refresh();
+            } else if (ev.kind === "needs_you") {
+              view.needsYou = ev.message;
+            } else if (ev.kind === "screenshot") {
+              if (pump && mode === "video") pump.offer(ev.path);
+              else if (!uploading && Date.now() - lastUpload >= imageEvery) void uploadImage(ev.path);
+            }
+          },
+        ),
       );
+      view.usage = usage;
       executedBy = result.executedBy;
       framesDir = result.framesDir;
       if (framesDir) {
@@ -801,8 +826,17 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
       if (result.needsYou) view.needsYou = result.needsYou;
       view.phase = result.needsYou ? "needs_you" : result.drafts.length > 0 ? "review" : "done";
       log.info(
-        `run ${skill}: ${view.phase} via ${result.executedBy} in ${Math.round(result.elapsedMs / 1000)} s`,
+        `run ${skill}: ${view.phase} via ${result.executedBy} in ${Math.round(result.elapsedMs / 1000)} s, ${usage.calls} model calls, ${totalTokens(usage)} tokens`,
       );
+      // The worker remembers what this run found, for next time.
+      const lesson =
+        owner && view.phase !== "needs_you"
+          ? lessonFrom(
+              skill,
+              result.summary ?? (result.drafts.length ? `${result.drafts.length} drafts queued` : ""),
+            )
+          : null;
+      if (owner && lesson && deps.memory) void deps.memory.learn(owner, lesson).catch(() => undefined);
     } catch (err) {
       view.phase = "failed";
       view.error = err instanceof Error ? err.message : String(err);
@@ -852,6 +886,7 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
       // A GTM review run gets its replay after Send, when the clip also shows the real sends.
       if (video && !(view.phase === "review" && deps.sender)) await postReplay(client, card, video.mp4);
     }
+    return view;
   }
 
   async function postReplay(client: WebClient, card: LiveCard, mp4: string): Promise<void> {
@@ -906,6 +941,67 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
   app.command(DYNAMIC_COMMAND, async ({ command, ack, respond, client }) => {
     await ack();
     await startRun(command, respond, client, command.command.slice(1), command.text.trim());
+  });
+
+  // ================================================================ /team <request>: a team of agents
+  // The router reads one line per skill and plans; each step runs on the worker agent that owns the skill, with
+  // only that worker's memory; a worker's result is handed to the next worker (posted in the plan's thread).
+  app.command("/team", async ({ command, ack, respond, client }) => {
+    await ack();
+    const request = command.text.trim();
+    if (!request) {
+      await respond({
+        response_type: "ephemeral",
+        text: "Usage: `/team ship v1.3 and tell the launch list`",
+      });
+      return;
+    }
+    const llm = deps.routerLlm;
+    if (!llm) {
+      await respond({ response_type: "ephemeral", text: "No LLM key: add OPENAI_API_KEY to Keychain." });
+      return;
+    }
+    const team = roster(await library.publicList("", 500));
+    const planned = await metered(() => route(llm, team, request)).catch((err: unknown) => {
+      log.error("router failed:", err instanceof Error ? err.message : err);
+      return null;
+    });
+    if (!planned) {
+      await respond({ response_type: "ephemeral", text: "The router could not plan that one." });
+      return;
+    }
+    const { result: plan, usage: routerUsage } = planned;
+    const lines = plan.steps.map((st, i) => `${i + 1}.  ${agentName(st.agent)}  →  \`/${st.skill}\``);
+    const posted = await client.chat.postMessage({
+      channel: command.channel_id,
+      text: plan.reply,
+      blocks: teamPlanBlocks(plan.reply, lines, routerUsage),
+    });
+    log.info(
+      `team: "${request}" -> ${plan.steps.map((st) => `${st.agent}/${st.skill}`).join(" > ") || "no steps"} (router ${totalTokens(routerUsage)} tokens)`,
+    );
+    const say = (text: string) =>
+      client.chat
+        .postMessage({ channel: command.channel_id, thread_ts: posted.ts, text })
+        .catch(() => undefined);
+    let prev: { agent: AgentId; summary: string } | null = null;
+    for (const st of plan.steps) {
+      if (prev)
+        await say(`*${agentName(prev.agent)} → ${agentName(st.agent)}:* ${prev.summary.split("\n")[0]}`);
+      const extra = [st.note, prev ? `From the ${agentName(prev.agent)}: ${prev.summary}` : ""]
+        .filter(Boolean)
+        .join("\n");
+      const view = await startRun(command, respond, client, st.skill, extra);
+      if (!view || view.phase === "failed" || view.phase === "needs_you") {
+        await say(`Stopped at ${agentName(st.agent)}.`);
+        break;
+      }
+      prev = {
+        agent: st.agent,
+        summary:
+          view.summary ?? (view.drafts.length ? `${view.drafts.length} drafts ready for review` : "done"),
+      };
+    }
   });
 
   // ================================================================ /commands and App Home

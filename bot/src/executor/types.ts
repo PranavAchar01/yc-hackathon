@@ -13,6 +13,11 @@ export interface RunTask {
   extra: string;
   /** Where a computer-use run starts; from the command's config. */
   startUrl?: string | null;
+  /** Worker agent running it (team mode): its name, and the memory scoped to it. */
+  agent?: string;
+  memory?: string[];
+  /** Generalist mode (the baseline we compare against): every skill and every memory, loaded up front. */
+  catalog?: string;
 }
 
 export type ExecEvent =

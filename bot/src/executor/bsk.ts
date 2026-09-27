@@ -184,6 +184,11 @@ export function systemPrompt(task: RunTask, startUrl: string, recalled: string, 
   const origin = originOf(startUrl) ?? startUrl;
   return [
     `You replay a procedure a teammate (${p.teacher}) demonstrated once: "${p.title}". You act in a real, logged-in Chrome through tools.`,
+    task.agent ? `You are the ${task.agent} on a team of agents; this skill is yours.` : "",
+    task.memory?.length
+      ? `What you know from earlier runs:\n${task.memory.map((m) => `- ${m}`).join("\n")}`
+      : "",
+    task.catalog ? `Every skill and note your team has (you carry all of it):\n${task.catalog}` : "",
     `Now: ${now.toISOString()} (use it for "last 24 hours" and ages).`,
     `Start at ${startUrl}. Steps:`,
     ...p.steps.map((s, i) => `${i + 1}. ${s}`),

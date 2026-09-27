@@ -1,4 +1,5 @@
 import type { types } from "@slack/bolt";
+import { fmtTokens, totalTokens, type Usage } from "./usage.ts";
 
 type KnownBlock = types.KnownBlock;
 
@@ -293,6 +294,10 @@ export interface RunView {
   startUrl?: string;
   /** How to run it again, e.g. "/ship" or "/do ship". */
   invoke?: string;
+  /** The worker agent that ran it (team mode), e.g. "GitHub agent". */
+  agent?: string;
+  /** What the model calls of this run cost, as billed. */
+  usage?: Usage;
 }
 
 /** Short verb titles for the commands people run on stage; everything else gets one derived from its title. */
@@ -394,6 +399,15 @@ export function shortReason(error: string | undefined): string {
   return s.length > 70 ? `${s.slice(0, 67).trimEnd()}...` : s;
 }
 
+/** "  ·  GitHub agent  ·  38.2k tokens" when known. */
+function meterLine(v: RunView): string {
+  const parts = [
+    v.agent,
+    v.usage && v.usage.calls > 0 ? `${fmtTokens(totalTokens(v.usage))} tokens` : undefined,
+  ].filter(Boolean);
+  return parts.length ? `  ·  ${esc(parts.join("  ·  "))}` : "";
+}
+
 function videoBlock(v: { url: string; thumbnailUrl: string }, title: string, alt: string): KnownBlock {
   return {
     type: "video",
@@ -432,7 +446,10 @@ export function runCard(v: RunView): Card {
   const blocks: KnownBlock[] = [];
 
   if (v.phase === "running") {
-    blocks.push({ type: "section", text: md(`${MARKS.running}  *${esc(title)}*`) });
+    blocks.push({
+      type: "section",
+      text: md(`${MARKS.running}  *${esc(title)}*${v.agent ? `  ·  ${esc(v.agent)}` : ""}`),
+    });
     const live = liveBlock(v);
     if (live) blocks.push(live);
     // With the video the card must stay still (an update resets Slack's player); progress is in the player.
@@ -495,7 +512,7 @@ export function runCard(v: RunView): Card {
   }
 
   // done
-  blocks.push({ type: "section", text: md(`${MARKS.done}  *Done  ·  ${clock}*`) });
+  blocks.push({ type: "section", text: md(`${MARKS.done}  *Done  ·  ${clock}*${meterLine(v)}`) });
   if (v.replay) blocks.push(videoBlock(v.replay, `Replay  ·  ${title}`, "Replay of the agent's run"));
   const lines = resultLines(v.summary);
   const url = resultUrl(v.summary, v.startUrl);
@@ -560,4 +577,15 @@ export function notFoundCard(skill: string): Card {
       context(`Teach it once with \`/teach ${esc(skill)}\`.`),
     ],
   };
+}
+
+/** The router's plan, posted before the workers start: who does what, and what routing cost. */
+export function teamPlanBlocks(reply: string, steps: string[], router: Usage): KnownBlock[] {
+  return [
+    { type: "section", text: md(`*Router*  ·  ${esc(reply)}`) },
+    ...(steps.length ? [{ type: "section" as const, text: md(steps.map(esc).join("\n")) }] : []),
+    context(
+      `Routed with ${fmtTokens(totalTokens(router))} tokens  ·  each agent loads only its own skills and memory`,
+    ),
+  ];
 }

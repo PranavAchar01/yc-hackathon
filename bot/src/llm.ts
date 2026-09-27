@@ -3,6 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import OpenAI from "openai";
 import { z } from "zod";
 import { log } from "./log.ts";
+import { recordUsage } from "./usage.ts";
 
 /**
  * One small interface for the three model call sites (/teach frames -> steps, /new and Save-as drafts,
@@ -167,6 +168,11 @@ export class OpenAIProvider implements LlmProvider {
         json_schema: { name: o.schemaName, strict: true, schema: strictJsonSchema(o.schema) },
       },
     });
+    recordUsage(
+      res.usage?.prompt_tokens ?? 0,
+      res.usage?.completion_tokens ?? 0,
+      res.usage?.prompt_tokens_details?.cached_tokens ?? 0,
+    );
     const choice = res.choices[0];
     if (choice?.message.refusal) throw new Error("the model declined this one");
     const text = choice?.message.content;
@@ -205,6 +211,11 @@ export class OpenAIProvider implements LlmProvider {
           store: false,
           include: ["reasoning.encrypted_content"],
         });
+        recordUsage(
+          res.usage?.input_tokens ?? 0,
+          res.usage?.output_tokens ?? 0,
+          res.usage?.input_tokens_details?.cached_tokens ?? 0,
+        );
         input.push(...(res.output as OpenAI.Responses.ResponseInputItem[]));
         const calls: ToolCall[] = [];
         let refused = false;
@@ -286,6 +297,13 @@ export class AnthropicProvider implements LlmProvider {
       output_config: { effort: o.effort ?? "high", format: zodOutputFormat(o.schema) },
       messages: [{ role: "user", content: anthropicParts(o.content) }],
     });
+    recordUsage(
+      (res.usage?.input_tokens ?? 0) +
+        (res.usage?.cache_read_input_tokens ?? 0) +
+        (res.usage?.cache_creation_input_tokens ?? 0),
+      res.usage?.output_tokens ?? 0,
+      res.usage?.cache_read_input_tokens ?? 0,
+    );
     if (res.stop_reason === "refusal") throw new Error("the model declined this one");
     if (res.parsed_output === null) throw new Error(`no structured output (stop: ${res.stop_reason})`);
     return o.schema.parse(res.parsed_output);
@@ -310,6 +328,13 @@ export class AnthropicProvider implements LlmProvider {
           output_config: { effort: o.effort ?? "medium" },
           messages,
         });
+        recordUsage(
+          (res.usage?.input_tokens ?? 0) +
+            (res.usage?.cache_read_input_tokens ?? 0) +
+            (res.usage?.cache_creation_input_tokens ?? 0),
+          res.usage?.output_tokens ?? 0,
+          res.usage?.cache_read_input_tokens ?? 0,
+        );
         // Keep every block (thinking included) so the next turn replays the history unchanged.
         messages.push({ role: "assistant", content: res.content });
         const calls = res.content
