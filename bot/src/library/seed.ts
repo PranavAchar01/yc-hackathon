@@ -90,7 +90,7 @@ export function seedRuns(data: SeedData, now = Date.now()): RunRecord[] {
 }
 
 /** Commands that run on real sites (GitHub, Vercel). Kept in sync with the seed file on every start. */
-export const REAL_SITE_COMMANDS = ["standup", "triage", "ship", "deploys"] as const;
+export const REAL_SITE_COMMANDS = ["announce", "standup", "triage", "ship", "deploys"] as const;
 
 /**
  * Idempotent upsert of the real-site commands by name, so a hosted library that was seeded earlier picks up

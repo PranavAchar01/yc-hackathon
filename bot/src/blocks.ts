@@ -298,6 +298,7 @@ export interface RunView {
 /** Short verb titles for the commands people run on stage; everything else gets one derived from its title. */
 const VERB_TITLES: Record<string, string> = {
   triage: "Triaging issues",
+  announce: "Announcing the release",
   standup: "Writing the standup",
   ship: "Shipping the release",
   deploys: "Checking deploys",

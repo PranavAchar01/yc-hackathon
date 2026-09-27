@@ -964,14 +964,16 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     await reply(`Sending ${total} through Gmail. Test addresses only.`);
     try {
       const res = await deps.sender.send(run.view.drafts, () => undefined, run.framesDir);
-      log.info(`run ${run.view.procedure.name}: sent ${res.sent.length} through Gmail, ${res.failed.length} failed`);
-      // The clip now shows the whole job: drafting in the browser, then the real sends in Gmail.
+      log.info(
+        `run ${run.view.procedure.name}: sent ${res.sent.length} through Gmail, ${res.failed.length} failed`,
+      );
+      // The card says it at once; the replay (drafting, then the real sends in Gmail) follows in the thread.
+      run.view.phase = "sent";
+      void run.card.update(runCard(run.view));
       if (run.framesDir && deps.publishVideo) {
         const video = await deps.publishVideo(run.view.procedure.name, run.framesDir);
         if (video) void postReplay(client, run.card, video.mp4);
       }
-      run.view.phase = "sent";
-      void run.card.update(runCard(run.view));
       await reply(
         res.failed.length
           ? `${sentLine(res.sent.length)} ${res.failed.length} did not go out: ${res.failed.map((f) => f.reason).join(", ")}.`

@@ -5,13 +5,13 @@
 set -u
 cd ${0:A:h}/..
 T=./tools
-CH=C0C4B2S08E9        # #shipping
+CH=${CH:-C0C4B2S08E9}        # #shipping (CH=... to film elsewhere)
 REPO=https://github.com/PranavAchar01/over-the-shoulder
-export SW=${SW:-27322}
+export SW=${SW:-28284}
 TAKE=$1
 rm -f raw/$TAKE.marks raw/$TAKE.focus
 caffeinate -dimsu -t 1200 & CAF=$!
-newtab() { osascript -e "tell application \"Google Chrome\" to tell (first window whose title contains \"(Channel) - YC\") to make new tab with properties {URL:\"$1\"}" >/dev/null; }
+newtab() { osascript -e "tell application \"Google Chrome\" to tell window id ${WID:-1078947361} to make new tab with properties {URL:\"$1\"}" >/dev/null; }
 # The video tile shows up with the agent's first frame (a few seconds in): retry until it is there.
 play() { for i in {1..20}; do $T/raise.sh; sleep 0.4; .venv/bin/python $T/clickplay.py $SW >> raw/$TAKE.focus 2>/dev/null && return 0; sleep 1.5; done; echo "play not found"; }
 run_take() {  # $1 = what to type, $2 = log name of the run, $3 = verify URL
@@ -46,11 +46,11 @@ case $TAKE in
     sleep 14; $T/mark.sh $TAKE flipped            # the review card: drafts ready, Send
     sleep 2; $T/raise.sh; sleep 0.4; .venv/bin/python $T/clickgreen.py $SW; $T/mark.sh $TAKE send
     $T/waitlog.sh "run announce: sent" 300; $T/mark.sh $TAKE delivered
-    sleep 3; newtab "$GQ"; $T/mark.sh $TAKE verify; sleep 8 ;;
+    sleep 3; newtab "$GQ"; $T/mark.sh $TAKE verify; sleep 15 ;;   # Gmail search takes a while to fill in
   *) echo "unknown take"; kill $CAF; exit 2 ;;
 esac
 $T/rec.sh stop $TAKE
 # Close the check tab in the Slack window (its first tab is Slack, the check is the active one).
-grep -q verify raw/$TAKE.marks 2>/dev/null && osascript -e 'tell application "Google Chrome" to tell (first window whose URL of tab 1 contains "app.slack.com/client") to if (count of tabs) > 1 then close active tab' >/dev/null 2>&1
+grep -q verify raw/$TAKE.marks 2>/dev/null && osascript -e "tell application \"Google Chrome\" to tell window id ${WID:-1078947361} to if (count of tabs) > 1 then close active tab" >/dev/null 2>&1
 kill $CAF 2>/dev/null
 cat raw/$TAKE.marks raw/$TAKE.focus 2>/dev/null

@@ -92,7 +92,8 @@ const session = (
 try {
   for (const name of names) {
     const [site, url] = PLAN[name] as [Site, string];
-    await bsk("navigate", url, "--session", session);
+    // Slack's client can hold the load event open; the page is usable anyway, so a slow navigate is not fatal.
+    await bsk("navigate", url, "--session", session).catch(() => "");
     await new Promise((r) => setTimeout(r, site === "Slack" || site === "Gmail" ? 6000 : 3500));
     const png = join(dir, `${name}.png`);
     await bsk("screenshot", "--session", session, "--out", png);

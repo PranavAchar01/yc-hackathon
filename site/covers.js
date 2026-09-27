@@ -15,7 +15,7 @@ export const TEAMS = {
 // First match wins. Words are matched against the command name, title and description.
 const TEAM_RULES = [
   ["eng", /\b(code review|pull request|deploy\w*|incident|postmortem|on ?call|oncall|tech debt|changelog)\b/],
-  ["gtm", /\b(case study|gtm|launch emails?|lead routing|demo request)\b/],
+  ["gtm", /\b(case study|gtm|launch emails?|lead routing|demo request|announce)\b/],
   ["ops", /\b(vendor|onboard\w*|offboard\w*|facilities|travel|supply|office|procurement)\b/],
   ["design", /\b(design|brand|style guide|style|asset|mockup|figma|user test|usability)\b/],
   ["people", /\b(interview|hire|hiring|recruit|referral|benefits?|pto|survey|culture|pulse|people)\b/],

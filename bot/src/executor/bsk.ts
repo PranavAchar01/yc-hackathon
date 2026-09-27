@@ -119,7 +119,7 @@ export const TOOLS: ToolSpec[] = [
   {
     name: "draft_email",
     description:
-      "Queue one email draft for the person to review in Slack; nothing is sent until they press Send. Use the contact's @example.com address exactly as written. Short, plain text, no signature placeholders.",
+      "Queue one email draft for the person to review in Slack; nothing is sent until they press Send. Only for a contact you read on a page in this run (snapshot it first), with their @example.com address exactly as written; never invent contacts. Short, plain text, no signature placeholders.",
     parameters: obj(
       {
         to: { type: "string" },
@@ -310,6 +310,8 @@ export class BskExecutor implements Executor {
     const done = new Set<number>();
     let current = 0;
     let lastSnapshot = "";
+    // Every page text the agent has read this run: a draft may only go to an address it actually saw.
+    let seen = "";
     let summary = "";
     let needsYou: string | undefined;
     const drafts: EmailDraft[] = [];
@@ -349,8 +351,11 @@ export class BskExecutor implements Executor {
 
         const results: ToolResult[] = [];
         for (const use of uses) {
-          const out = await this.callTool(use, session, lastSnapshot, originOf(startUrl));
-          if (out.snapshot !== undefined) lastSnapshot = out.snapshot;
+          const out = await this.callTool(use, session, lastSnapshot, originOf(startUrl), seen);
+          if (out.snapshot !== undefined) {
+            lastSnapshot = out.snapshot;
+            seen = `${seen}\n${out.snapshot.toLowerCase()}`.slice(-400_000);
+          }
           if (out.action) actions.push(out.action);
           if (use.name === "step_done" && out.step !== undefined) {
             const i = out.step - 1;
@@ -407,6 +412,7 @@ export class BskExecutor implements Executor {
     session: string,
     lastSnapshot: string,
     allowedOrigin: string | null = null,
+    seen = "",
   ): Promise<{
     content: ToolResult["content"];
     isError?: boolean;
@@ -517,6 +523,12 @@ export class BskExecutor implements Executor {
           .toLowerCase();
         if (!/^[a-z0-9._+-]+@example\.com$/.test(to))
           return { content: "refused: drafts go to @example.com contacts only", isError: true };
+        // No made-up recipients: the address must be on a page read in this run (take a snapshot of the list).
+        if (!seen.includes(to))
+          return {
+            content: `refused: ${to} is not on any page you read in this run. Snapshot the contact list first; never invent contacts.`,
+            isError: true,
+          };
         const draft: EmailDraft = {
           to,
           toName: String(input.name ?? "").slice(0, 80),

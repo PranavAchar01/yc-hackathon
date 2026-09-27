@@ -190,10 +190,10 @@ describe("helpers", () => {
 
 describe("seed", () => {
   const data = loadSeed();
-  it("has 52 unique, fully filled commands with gtm and ship first", () => {
+  it("has 53 unique, fully filled commands with gtm and ship first", () => {
     const names = data.commands.map((c) => c.name);
-    expect(names).toHaveLength(52);
-    expect(new Set(names).size).toBe(52);
+    expect(names).toHaveLength(53);
+    expect(new Set(names).size).toBe(53);
     expect(names.slice(0, 2)).toEqual(["gtm", "ship"]);
     for (const c of data.commands) {
       expect(c.steps.length).toBeGreaterThanOrEqual(4);
@@ -222,7 +222,7 @@ describe("seed", () => {
   it("seeds an empty library once", async () => {
     const lib = new MemoryLibrary();
     expect(await seedIfEmpty(lib, data)).toBe(true);
-    expect(await lib.count()).toBe(52);
+    expect(await lib.count()).toBe(53);
     expect(await seedIfEmpty(lib, data)).toBe(false);
     expect((await lib.teammatesUseNotTried({ userId: "U0NWPRIYA" }, 5)).length).toBeGreaterThan(0);
     expect((await lib.search({ userId: "UNEW" }, "send launch emails", 3))[0]?.name).toBe("gtm");
@@ -230,7 +230,7 @@ describe("seed", () => {
 
   it("real-site commands carry a real start URL, run as Pranav, and are slash commands", () => {
     const cmds = seedCommands(data).filter((c) => (REAL_SITE_COMMANDS as readonly string[]).includes(c.name));
-    expect(cmds.map((c) => c.name).sort()).toEqual(["deploys", "ship", "standup", "triage"]);
+    expect(cmds.map((c) => c.name).sort()).toEqual(["announce", "deploys", "ship", "standup", "triage"]);
     for (const c of cmds) {
       expect(c.startUrl).toMatch(/^https:\/\/(github\.com|vercel\.com)\//);
       expect(c.authorName).toBe("Pranav Achar");
@@ -252,12 +252,18 @@ describe("seed", () => {
       status: "ok",
       elapsedMs: 1,
     });
-    expect(await syncRealSiteCommands(lib, data)).toEqual(["ship", "standup", "triage", "deploys"]);
+    expect(await syncRealSiteCommands(lib, data)).toEqual([
+      "ship",
+      "standup",
+      "triage",
+      "deploys",
+      "announce",
+    ]);
     const standup = await lib.get("standup");
     expect(standup?.title).toBe("Daily standup from GitHub");
     expect(standup?.startUrl).toBe("https://github.com/PranavAchar01/over-the-shoulder/commits/main");
     expect(standup?.uses).toBe(1);
-    expect(await syncRealSiteCommands(lib, data)).toHaveLength(4);
-    expect(await lib.count()).toBe(4);
+    expect(await syncRealSiteCommands(lib, data)).toHaveLength(5);
+    expect(await lib.count()).toBe(5);
   });
 });

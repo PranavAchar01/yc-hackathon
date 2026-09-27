@@ -219,7 +219,7 @@ describe("BskExecutor", () => {
     ]);
   });
 
-  it("queues email drafts for review, only to @example.com contacts", async () => {
+  it("queues drafts only to @example.com contacts it read on a page, never invented ones", async () => {
     const d = {
       name: "Dana",
       company: "Contoso",
@@ -227,23 +227,24 @@ describe("BskExecutor", () => {
       body: "Hi Dana, v1.2.0 shipped.",
     };
     const { llm } = fakeLlm([
+      // before any page mentions her: refused (no made-up recipients)
+      [use("t0", "draft_email", { ...d, to: "dana@example.com" })],
+      [use("t1", "snapshot", {})],
       [
-        use("t1", "draft_email", { ...d, to: "dana@example.com" }),
-        use("t2", "draft_email", { ...d, to: "ceo@realco.com" }),
+        use("t2", "draft_email", { ...d, to: "dana@example.com" }),
+        use("t3", "draft_email", { ...d, to: "ceo@realco.com" }),
+        use("t4", "draft_email", { ...d, to: "alice@example.com" }),
       ],
-      [use("t3", "finish", { summary: "1 draft queued" })],
+      [use("t5", "finish", { summary: "1 draft queued" })],
     ]);
-    const res = await make(fakeBsk().runner, llm).run(task, () => undefined);
-    expect(res.drafts).toEqual([
-      {
-        to: "dana@example.com",
-        toName: "Dana",
-        company: "Contoso",
-        subject: "v1.2.0 is out",
-        body: "Hi Dana, v1.2.0 shipped.",
-        attachment: "",
-      },
-    ]);
+    const snap = {
+      code: 0,
+      stdout: "name,company,email\nDana Whitfield,Contoso,dana@example.com",
+      stderr: "",
+    };
+    const res = await make(fakeBsk({ snapshot: snap }).runner, llm).run(task, () => undefined);
+    expect(res.drafts.map((x) => x.to)).toEqual(["dana@example.com"]);
+    expect(res.drafts[0]).toMatchObject({ toName: "Dana", company: "Contoso", attachment: "" });
   });
 
   it("returns a multi-line finish summary untouched for the card to format", async () => {
