@@ -1,0 +1,34 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bot
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ots
+          POSTGRES_PASSWORD: ots
+          POSTGRES_DB: ots
+        ports: ["5544:5432"]
+        options: --health-cmd "pg_isready -U ots" --health-interval 2s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: bot/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
