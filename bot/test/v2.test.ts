@@ -222,7 +222,7 @@ describe("App Home and /commands", () => {
     const t = text(v);
     expect(v.type).toBe("home");
     expect(t).toContain("Popular on your team");
-    expect(t).toContain("Your teammates use these. You haven't tried them yet.");
+    expect(t).toContain("New to you");
     expect(t).toContain("*Yours*");
     expect(t).toContain("dispatch_action");
     expect(t).toContain("*/gtm*");

@@ -6,7 +6,7 @@ type KnownBlock = types.KnownBlock;
 type HomeView = types.HomeView;
 
 export const HOME_SEARCH = { block: "home_search", action: "ots_home_search" } as const;
-const SECTION_LIMIT = 5;
+const SECTION_LIMIT = 4;
 
 const md = (text: string) => ({ type: "mrkdwn" as const, text });
 
@@ -14,16 +14,13 @@ export function runsLabel(n: number): string {
   return n === 1 ? "1 run" : `${n} runs`;
 }
 
-/** One command, two blocks: what it is, then who made it and how often it runs. */
+/** One command, two quiet lines: the command and its name, then what it does and how often it runs. No emoji. */
 export function commandRow(c: CommandRecord): KnownBlock[] {
   return [
-    {
-      type: "section",
-      text: md(`${c.emoji}  *${esc(invocation(c))}*   ${esc(c.title)}\n${esc(c.description)}`),
-    },
+    { type: "section", text: md(`*${esc(invocation(c))}*   ${esc(c.title)}`) },
     {
       type: "context",
-      elements: [md(`${esc(c.authorName)}  ·  ${runsLabel(c.uses)}  ·  ${c.steps.length} steps`)],
+      elements: [md(`${esc(c.description)}  ·  ${esc(c.authorName)}  ·  ${runsLabel(c.uses)}`)],
     },
   ];
 }
@@ -48,7 +45,7 @@ export function homeView(d: HomeData): HomeView {
     { type: "header", text: { type: "plain_text", text: "Commands" } },
     {
       type: "context",
-      elements: [md("Things your team taught once. Teach one with `/teach`, or describe one with `/new`.")],
+      elements: [md("Things your team showed once. Show one with `/teach`, or describe one with `/new`.")],
     },
     {
       type: "input",
@@ -74,14 +71,12 @@ export function homeView(d: HomeData): HomeView {
       { type: "divider" },
     );
   }
+  const shown = new Set(d.popular.slice(0, SECTION_LIMIT).map((c) => c.name));
+  const teammates = d.teammates.filter((c) => !shown.has(c.name));
   blocks.push(
     ...group("Popular on your team", d.popular, "No runs yet."),
     { type: "divider" },
-    ...group(
-      "Your teammates use these. You haven't tried them yet.",
-      d.teammates,
-      "You've tried everything your team uses. Nice.",
-    ),
+    ...group("New to you", teammates, "You've tried everything your team uses."),
     { type: "divider" },
     ...group("Yours", d.yours, "Nothing yet. Run `/teach` and do a task once."),
   );
