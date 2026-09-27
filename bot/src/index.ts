@@ -140,6 +140,9 @@ function primaryExecutor(): CheckedExecutor | null {
       memorable,
       memorableScope: config.OTS_MEMORABLE_SCOPE,
       timeoutMs: config.BSK_TIMEOUT_MS,
+      windowSize: config.OTS_BSK_WINDOW
+        ? (config.OTS_BSK_WINDOW.split("x").map(Number) as [number, number])
+        : undefined,
       effort: config.BSK_EFFORT,
     });
   if (config.OTS_EXECUTOR === "qm") return new QmExecutor(config.OTS_QM_URL, config.OTS_QM_SIGNING_SECRET);

@@ -31,6 +31,11 @@ const EnvSchema = z.object({
   OTS_QM_URL: z.url().default("http://localhost:8080"),
   OTS_QM_SIGNING_SECRET: z.string().optional(),
 
+  // Agent Window size, "WIDTHxHEIGHT" in CSS px (e.g. 1710x1060 to fill a MacBook Air screen). Unset = bsk default.
+  OTS_BSK_WINDOW: z
+    .string()
+    .regex(/^\d{3,4}x\d{3,4}$/)
+    .optional(),
   BSK_BIN: z.string().default(`${process.env.HOME ?? ""}/.local/bin/bsk`),
   BSK_TIMEOUT_MS: z.coerce.number().int().positive().default(900_000),
   BSK_EFFORT: z.enum(["low", "medium", "high"]).default("medium"),

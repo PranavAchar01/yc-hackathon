@@ -182,6 +182,8 @@ export function systemPrompt(task: RunTask, startUrl: string, recalled: string, 
 }
 
 export interface BskOptions {
+  /** Agent Window outer size in CSS px, e.g. full screen for filming. */
+  windowSize?: [number, number];
   bin: string;
   runner: CliRunner;
   /** Null when no LLM key is configured: the executor reports unhealthy and the guard runs scripted. */
@@ -227,6 +229,9 @@ export class BskExecutor implements Executor {
       "--json",
       "--name",
       `${p.title} (Over the Shoulder)`,
+      ...(this.o.windowSize
+        ? ["--width", String(this.o.windowSize[0]), "--height", String(this.o.windowSize[1])]
+        : []),
     ]);
     const session = startRes.code === 0 ? parseSessionId(startRes.stdout) : null;
     if (!session)
