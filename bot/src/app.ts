@@ -815,16 +815,26 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
   }
 
   async function postReplay(client: WebClient, card: LiveCard, mp4: string): Promise<void> {
-    try {
-      await client.files.uploadV2({
+    const upload = async () =>
+      client.files.uploadV2({
         channel_id: card.channel,
         thread_ts: card.ts,
         file: await readFile(mp4),
         filename: "replay.mp4",
         title: "Replay",
       });
+    try {
+      await upload();
     } catch (err) {
-      log.warn("replay upload failed", err instanceof Error ? err.message : err);
+      // The card posts via chat:write.public, but sharing a file needs membership: join the public channel once.
+      const code = (err as { data?: { error?: string } }).data?.error;
+      try {
+        if (code !== "not_in_channel") throw err;
+        await client.conversations.join({ channel: card.channel });
+        await upload();
+      } catch (err2) {
+        log.warn("replay upload failed", err2 instanceof Error ? err2.message : err2);
+      }
     }
   }
 

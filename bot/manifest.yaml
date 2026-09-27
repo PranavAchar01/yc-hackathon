@@ -10,6 +10,8 @@ features:
     home_tab_enabled: true
     messages_tab_enabled: true
     messages_tab_read_only_enabled: true
+  unfurl_domains:
+    - over-the-shoulder-brown.vercel.app # video_url for the live player must be on an unfurl domain
   bot_user:
     display_name: Over the Shoulder
     always_online: true
@@ -65,6 +67,10 @@ oauth_config:
       - chat:write        # post and update the run cards
       - chat:write.public # post cards in public channels without being invited first
       - files:write       # upload sandbox screenshots for the live view on the run card
+      - channels:join     # join a public channel before sharing the replay mp4 in the card's thread
+      - links.embed:write # the live agent view as a Block Kit video block
+    user:
+      - links.embed:write # Slack requires the video-embed scope on the user token too
 settings:
   event_subscriptions:
     bot_events:
