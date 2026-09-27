@@ -30,7 +30,9 @@ const rec = await page.screencast({ path: out as `${string}.webm`, fps: 30 } as 
 await wait(1800);
 await moveTo('.card[aria-label^="Triage"]');
 await wait(4200);                                   // the real /triage run plays on hover
-await moveTo('.card[aria-label^="GTM"]', 700);
+await moveTo('.card[aria-label^="Ship"]', 700);
+await wait(3800);
+await moveTo('.card[aria-label^="Daily standup"]', 700);
 await wait(2600);
 for (let i = 0; i < 24; i++) { await page.mouse.wheel({ deltaY: 22 }); await wait(16); }
 await wait(1200);

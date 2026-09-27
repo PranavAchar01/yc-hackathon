@@ -201,6 +201,14 @@ h2 .dim,h1 .dim{color:var(--ink3)}
 </section>
 
 <script>
+window.CAPS = {
+  triage: [[1.0, 11.5, "Type <em>/triage</em>. An agent opens the real GitHub repo, in the cloud."], [12.0, 26.0, "It reads each new issue and labels it: <em>bug, perf or feature, P1 or P2</em>."], [26.5, 37.5, "The Slack card ticks off every step, live, for the whole channel."]],
+  ship: [[1.0, 11.0, "<em>/ship</em> opens the release PR and checks its tests passed."], [11.5, 21.5, "It reads the diff, then merges the PR. For real."], [22.0, 31.0, "Then it publishes release <em>v0.1.0</em> with notes."]],
+  standup: [[1.0, 19.5, "<em>/standup</em> reads the repo's last 24 hours and writes the standup."]],
+  deploys: [[1.0, 27.0, "<em>/deploys</em> reads the real Vercel dashboard and reports on production."]],
+};
+</script>
+<script>
 (async () => {
 
   // Footage scene: media/<name>-agent.mp4 (full-screen agent browser) + media/<name>-slack.json (timed Slack frames).
@@ -225,6 +233,23 @@ h2 .dim,h1 .dim{color:var(--ink3)}
     return [sec.id, Math.min(meta.duration, opt.max || meta.duration) + (opt.pad || 0.8)];
   }
 
+  async function libraryScene() {
+    const ok = await fetch("media/library.mp4", { method: "HEAD" }).then((r) => r.ok).catch(() => false);
+    if (!ok) return null;
+    const sec = document.createElement("section");
+    sec.className = "scene"; sec.id = "s-library";
+    sec.innerHTML = `
+      <div class="chips"><span class="pill glass"><span class="dot" style="background:var(--red)"></span>The library</span><span class="pill glass"><span class="dot" style="background:var(--accent)"></span>over-the-shoulder-brown.vercel.app/library</span><span class="pill glass speed">Real time · live site</span></div>
+      <div class="run3" style="grid-template-columns:1fr"><div class="win"><div class="tb"><span class="l"><i></i><i></i><i></i></span>Command library</div><video muted playsinline preload="auto" src="media/library.mp4"></video></div></div>
+      <div class="cap"></div>`;
+    document.body.insertBefore(sec, document.querySelector("script:last-of-type"));
+    const video = sec.querySelector("video");
+    await new Promise((r) => { if (video.readyState >= 1) r(); else video.addEventListener("loadedmetadata", r, { once: true }); });
+    sec._run = { meta: { speed: 1, duration: video.duration }, slack: [], video, shot: { style: {} }, cap: sec.querySelector(".cap"),
+      caps: [[1.0, 14.0, "Every run records itself. Hover a command to watch the agent do it."], [14.5, video.duration - 0.5, "Search the library, open one, copy the command. <em>Run it from Slack.</em>"]] };
+    return [sec.id, video.duration + 0.8];
+  }
+
   async function seekRun(sec, local) {
     const r = sec._run;
     const vt = Math.max(0, Math.min(r.meta.duration - 0.05, local - 0.3));
@@ -234,7 +259,7 @@ h2 .dim,h1 .dim{color:var(--ink3)}
     const real = vt * r.meta.speed;
     let f = r.slack[0];
     for (const x of r.slack) { if (x.t <= real) f = x; else break; }
-    if (f && r.shot._src !== f.src) { r.shot.style.backgroundImage = `url(${f.src})`; r.shot._src = f.src; }
+    if (f && r.shot.style && r.shot._src !== f.src) { r.shot.style.backgroundImage = `url(${f.src})`; r.shot._src = f.src; }
     const c = r.caps.find(([a, b]) => local >= a && local < b);
     r.cap.innerHTML = c ? c[2] : "";
     r.cap.style.opacity = c ? Math.min(1, (local - c[0]) / 0.4, (c[1] - local) / 0.4) : 0;
@@ -261,6 +286,8 @@ h2 .dim,h1 .dim{color:var(--ink3)}
     const ok = await fetch(`media/${name}.json`, { method: "HEAD" }).then((r) => r.ok).catch(() => false);
     if (ok) built.push(await runScene(name, { ...opt, caps: opt.caps || [] }));
   }
+  const lib = await libraryScene();
+  if (lib) built.push(lib);
   SCENES.splice(SCENES.findIndex(([id]) => id === "s-idea") + 1, 0, ...built);
   let t0 = 0;
   const plan = SCENES.map(([id, d]) => { const s = { id, start: t0, dur: d, el: document.getElementById(id) }; t0 += d - XF; return s; });
