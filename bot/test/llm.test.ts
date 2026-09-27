@@ -272,3 +272,25 @@ describe("AnthropicProvider", () => {
     expect((await chat.next()).refused).toBe(true);
   });
 });
+
+describe("compactHistory", () => {
+  it("keeps the latest screenshot and outputs, trims older ones, never drops items", async () => {
+    const { compactHistory } = await import("../src/llm.ts");
+    const big = "x".repeat(1000);
+    const input = [
+      { role: "user", content: "go" },
+      { type: "function_call_output", call_id: "a", output: big },
+      { role: "user", content: [{ type: "input_image", image_url: "data:1" }] },
+      { type: "function_call_output", call_id: "b", output: big },
+      { type: "function_call_output", call_id: "c", output: big },
+      { type: "function_call_output", call_id: "d", output: big },
+      { role: "user", content: [{ type: "input_image", image_url: "data:2" }] },
+    ] as unknown as Parameters<typeof compactHistory>[0];
+    compactHistory(input);
+    expect(input).toHaveLength(7);
+    expect(JSON.stringify(input[2])).toContain("older screenshot removed");
+    expect(JSON.stringify(input[6])).toContain("data:2");
+    expect((input[1] as { output: string }).output.length).toBeLessThan(400);
+    expect((input[5] as { output: string }).output).toBe(big);
+  });
+});
