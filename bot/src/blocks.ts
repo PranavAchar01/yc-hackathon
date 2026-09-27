@@ -56,6 +56,34 @@ export function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+export const SUMMARY_MAX_LINES = 12;
+const SUMMARY_MAX_CHARS = 2_800;
+
+/**
+ * An agent's finish summary as Slack mrkdwn: escaped, common Markdown mapped to mrkdwn (bold, bullets,
+ * headings, links), blank lines dropped, at most 12 lines and well under Slack's 3000-char section limit.
+ */
+export function slackSummary(raw: string): string {
+  const lines = raw
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((l) => l.trimEnd())
+    .filter((l) => l.trim() !== "" && !/^\s*(-{3,}|\|?[\s:|-]+\|[\s:|-]*)$/.test(l))
+    .map((l) =>
+      esc(l)
+        .replace(/^\s*#{1,6}\s+(.+)$/, "*$1*")
+        .replace(/^(\s*)[-*+]\s+/, "$1• ")
+        .replace(/\*\*(.+?)\*\*/g, "*$1*")
+        .replace(/__(.+?)__/g, "*$1*")
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, "<$2|$1>")
+        .slice(0, 400),
+    );
+  const kept = lines.slice(0, SUMMARY_MAX_LINES);
+  if (lines.length > kept.length) kept.push(`_${lines.length - kept.length} more lines_`);
+  const text = kept.join("\n");
+  return text.length > SUMMARY_MAX_CHARS ? `${text.slice(0, SUMMARY_MAX_CHARS)}...` : text;
+}
+
 const md = (text: string) => ({ type: "mrkdwn" as const, text });
 const context = (...lines: string[]): KnownBlock => ({ type: "context", elements: lines.map(md) });
 const divider: KnownBlock = { type: "divider" };
@@ -295,7 +323,8 @@ export function runCard(v: RunView): Card {
   }
 
   if (v.phase === "done") {
-    if (v.summary) blocks.push(divider, context(esc(v.summary.slice(0, 600))));
+    const summary = v.summary ? slackSummary(v.summary) : "";
+    if (summary) blocks.push(divider, { type: "section", text: md(summary) });
     blocks.push({ type: "actions", elements: [editButton(v.runId)] });
   }
 

@@ -15,7 +15,7 @@ import { LlmStepExtractor } from "./extract.ts";
 import { GmailSender, parseTestInbox } from "./gmail-send.ts";
 import { MemoryLibrary } from "./library/memory.ts";
 import { PgLibrary } from "./library/pg.ts";
-import { seedIfEmpty } from "./library/seed.ts";
+import { seedIfEmpty, syncRealSiteCommands } from "./library/seed.ts";
 import type { CommandLibrary } from "./library/types.ts";
 import { AnthropicProvider, chooseProvider, type LlmProvider, OpenAIProvider } from "./llm.ts";
 import { log } from "./log.ts";
@@ -67,7 +67,11 @@ async function openLibrary(): Promise<CommandLibrary> {
   return new MemoryLibrary();
 }
 const library = await openLibrary();
-if (config.OTS_SEED && (await seedIfEmpty(library))) log.info(`seeded the ${library.kind} library`);
+if (config.OTS_SEED) {
+  if (await seedIfEmpty(library)) log.info(`seeded the ${library.kind} library`);
+  const synced = await syncRealSiteCommands(library);
+  log.info(`real-site commands synced: ${synced.join(", ")}`);
+}
 
 // ---------------------------------------------------------------- search (GBrain, else Postgres FTS + trigram)
 function gbrainBin(): string[] | null {

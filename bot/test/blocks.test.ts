@@ -6,7 +6,9 @@ import {
   learnedHeadline,
   type RunView,
   runCard,
+  SUMMARY_MAX_LINES,
   sentThreadReply,
+  slackSummary,
   stepLines,
   teachLearnedCard,
   teachRecordingCard,
@@ -146,5 +148,50 @@ describe("formatDuration", () => {
     expect(formatDuration(38_000)).toBe("38 s");
     expect(formatDuration(192_000)).toBe("3 min 12 s");
     expect(formatDuration(120_000)).toBe("2 min");
+  });
+});
+
+describe("finish summary on the run card", () => {
+  it("shows the summary as a section on a done card", () => {
+    const card = runCard(
+      view({ phase: "done", summary: "Yesterday: merged #6\nToday: triage\nBlockers: None" }),
+    );
+    const section = card.blocks.find(
+      (b) => b.type === "section" && JSON.stringify(b).includes("Blockers: None"),
+    );
+    expect(section).toBeTruthy();
+    expect(allText(card.blocks)).toContain("Yesterday: merged #6\\nToday: triage");
+  });
+
+  it("maps Markdown to Slack mrkdwn and escapes the rest", () => {
+    const out = slackSummary(
+      "## Standup\n\n**Yesterday**: shipped <b>v0.1.0</b> & more\n- item one\n* item two\n[release](https://github.com/x/y/releases/tag/v0.1.0)",
+    );
+    expect(out.split("\n")).toEqual([
+      "*Standup*",
+      "*Yesterday*: shipped &lt;b&gt;v0.1.0&lt;/b&gt; &amp; more",
+      "• item one",
+      "• item two",
+      "<https://github.com/x/y/releases/tag/v0.1.0|release>",
+    ]);
+  });
+
+  it("drops table rules and caps the summary at 12 lines", () => {
+    const long = [
+      "| a | b |",
+      "| --- | --- |",
+      ...Array.from({ length: 20 }, (_, i) => `line ${i + 1}`),
+    ].join("\n");
+    const lines = slackSummary(long).split("\n");
+    expect(lines).toHaveLength(SUMMARY_MAX_LINES + 1);
+    expect(lines.at(-1)).toBe("_9 more lines_");
+    expect(lines).not.toContain("| --- | --- |");
+  });
+
+  it("stays under Slack's section text limit", () => {
+    expect(slackSummary("x".repeat(10_000)).length).toBeLessThan(3_000);
+    expect(slackSummary(Array.from({ length: 12 }, () => "y".repeat(390)).join("\n")).length).toBeLessThan(
+      3_000,
+    );
   });
 });

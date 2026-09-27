@@ -13,7 +13,8 @@
     { "key": "hana", "id": "U0NWHANA", "name": "Hana Petrov", "team": "eng" },
     { "key": "leo", "id": "U0NWLEO", "name": "Leo Marsh", "team": "finance" },
     { "key": "maya", "id": "U0NWMAYA", "name": "Maya Osei", "team": "support" },
-    { "key": "tariq", "id": "U0NWTARIQ", "name": "Tariq Bello", "team": "design" }
+    { "key": "tariq", "id": "U0NWTARIQ", "name": "Tariq Bello", "team": "design" },
+    { "key": "pranav", "id": "U0PRANAV", "name": "Pranav Achar", "team": "eng" }
   ],
   "commands": [
     {
@@ -40,43 +41,82 @@
     {
       "name": "ship",
       "title": "Ship the release",
-      "description": "Review and merge the release PR, publish release notes, draft the launch email",
+      "description": "Merge the newest green PR on over-the-shoulder and publish a GitHub release with notes",
       "emoji": ":package:",
       "team": "eng",
-      "author": "mark",
+      "author": "pranav",
       "visibility": "everyone",
       "registered": "slash",
-      "startUrl": "https://github.com/pulls",
+      "startUrl": "https://github.com/PranavAchar01/over-the-shoulder/pulls",
       "steps": [
-        "Open the release pull request",
-        "Wait until CI checks are green",
-        "Read the diff and apply Mark's review rules",
-        "Label the PR and approve or request changes",
-        "Merge the pull request",
-        "Draft release notes from the merged changes",
-        "Publish the release",
-        "Draft the launch email with the release link and stop for review"
+        "Open the newest open pull request in the list (the top one when sorted Newest)",
+        "Confirm every check passed (Conversation tab checks box shows all green); if any check failed or is still running, call finish and report it instead of merging",
+        "Open Files changed and read the diff so the release notes describe it accurately",
+        "Merge with Create a merge commit: choose that option in the merge dropdown if needed, click it, then Confirm merge",
+        "Open https://github.com/PranavAchar01/over-the-shoulder/releases and read the latest release tag (none means the next tag is v0.1.0; otherwise bump the minor version, v0.1.0 to v0.2.0)",
+        "Open https://github.com/PranavAchar01/over-the-shoulder/releases/new, type the new tag and choose Create new tag on publish, target main, title it with the tag, and write 2 to 4 short lines of notes from the PR title and diff",
+        "Click Publish release, then call finish with the release URL"
       ],
-      "usage": { "mark": 3, "jordan": 2 }
+      "usage": { "pranav": 3, "jordan": 2, "mark": 1 }
     },
     {
       "name": "standup",
-      "title": "Daily standup summary",
-      "description": "Collect updates and post a summary of yesterday and today",
+      "title": "Daily standup from GitHub",
+      "description": "Read the last 24 h of commits, PRs and reviews across Pranav's repos and write the standup",
       "emoji": ":wave:",
       "team": "eng",
-      "author": "jordan",
+      "author": "pranav",
       "visibility": "everyone",
-      "registered": "router",
-      "startUrl": null,
+      "registered": "slash",
+      "startUrl": "https://github.com/PranavAchar01?tab=overview",
       "steps": [
-        "Check the team channel for check-ins",
-        "List yesterday's completed tickets",
-        "List today's planned tickets",
-        "Flag any blockers raised",
-        "Post the standup summary to the channel"
+        "Read the Contribution activity on the overview page and note everything from the last 24 hours (commits, PRs opened, merged or reviewed, per repo)",
+        "Open https://github.com/PranavAchar01?tab=repositories&sort=updated and note each repo updated in the last 24 hours",
+        "For up to 4 of those repos, open https://github.com/PranavAchar01/<repo>/commits and read the commit messages from the last 24 hours",
+        "Open https://github.com/pulls to see open PRs he authored, and note any with failing checks or waiting on review",
+        "Write the standup in 4 to 6 lines: Yesterday (what shipped), Today (open PRs and the obvious next step), Blockers (failing checks or waiting reviews, else None)",
+        "Call finish with exactly that standup text. Read only: never click a write action"
       ],
-      "usage": { "jordan": 18, "ben": 14, "hana": 10, "priya": 3 }
+      "usage": { "pranav": 9, "jordan": 6, "ben": 4, "hana": 3 }
+    },
+    {
+      "name": "triage",
+      "title": "Triage new issues",
+      "description": "Label every unlabeled open issue on over-the-shoulder with a type and a priority, and ask for repro steps when missing",
+      "emoji": ":label:",
+      "team": "eng",
+      "author": "pranav",
+      "visibility": "everyone",
+      "registered": "slash",
+      "startUrl": "https://github.com/PranavAchar01/over-the-shoulder/issues",
+      "steps": [
+        "Open https://github.com/PranavAchar01/over-the-shoulder/issues?q=is%3Aissue+is%3Aopen+no%3Alabel and list every open issue with no labels",
+        "Open each of those issues in turn and read its title and body",
+        "In the Labels menu of the issue, pick exactly one type label (bug, feature or perf) and exactly one priority (P1 if it breaks a core flow or the demo, else P2), then close the menu to save",
+        "Only if it is a bug or perf issue with no steps to reproduce: also add needs-repro and post a one-line comment asking for the exact steps to reproduce",
+        "Never close an issue, never assign anyone, never edit a title or body; go back to the list and repeat until no unlabeled open issue is left",
+        "Call finish with one line per issue: #number title: labels added (and repro asked when you commented)"
+      ],
+      "usage": { "pranav": 4, "ben": 3, "aisha": 2 }
+    },
+    {
+      "name": "deploys",
+      "title": "Latest production deploy",
+      "description": "Read the latest Vercel production deployment of over-the-shoulder: status, age, commit, duration, warnings",
+      "emoji": ":satellite:",
+      "team": "eng",
+      "author": "pranav",
+      "visibility": "everyone",
+      "registered": "slash",
+      "startUrl": "https://vercel.com/phantom3452s-projects/over-the-shoulder",
+      "steps": [
+        "On the project overview, find the Production Deployment panel and open the latest production deployment",
+        "Read its status (Ready, Error, Building or Canceled), how long ago it was created, and the build duration",
+        "Read the commit it was built from: short sha and commit message",
+        "Open Build Logs and note any warning lines (none is a valid answer)",
+        "Call finish with a 3-line report: status and age, commit, duration and warnings. Read only: never redeploy, promote or change settings"
+      ],
+      "usage": { "pranav": 5, "hana": 3, "felix": 2 }
     },
     {
       "name": "bug-triage",

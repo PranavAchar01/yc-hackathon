@@ -1,7 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MemoryLibrary, scoreCommand, similarity, stem } from "../src/library/memory.ts";
 import { PgLibrary } from "../src/library/pg.ts";
-import { loadSeed, SEED_CHANNEL, seedCommands, seedIfEmpty, seedRuns } from "../src/library/seed.ts";
+import {
+  loadSeed,
+  REAL_SITE_COMMANDS,
+  SEED_CHANNEL,
+  seedCommands,
+  seedIfEmpty,
+  seedRuns,
+  syncRealSiteCommands,
+} from "../src/library/seed.ts";
 import type { CommandLibrary, NewCommand } from "../src/library/types.ts";
 import { canSee, invocation } from "../src/library/types.ts";
 
@@ -182,10 +190,10 @@ describe("helpers", () => {
 
 describe("seed", () => {
   const data = loadSeed();
-  it("has 50 unique, fully filled commands with gtm and ship first", () => {
+  it("has 52 unique, fully filled commands with gtm and ship first", () => {
     const names = data.commands.map((c) => c.name);
-    expect(names).toHaveLength(50);
-    expect(new Set(names).size).toBe(50);
+    expect(names).toHaveLength(52);
+    expect(new Set(names).size).toBe(52);
     expect(names.slice(0, 2)).toEqual(["gtm", "ship"]);
     for (const c of data.commands) {
       expect(c.steps.length).toBeGreaterThanOrEqual(4);
@@ -214,9 +222,42 @@ describe("seed", () => {
   it("seeds an empty library once", async () => {
     const lib = new MemoryLibrary();
     expect(await seedIfEmpty(lib, data)).toBe(true);
-    expect(await lib.count()).toBe(50);
+    expect(await lib.count()).toBe(52);
     expect(await seedIfEmpty(lib, data)).toBe(false);
     expect((await lib.teammatesUseNotTried({ userId: "U0NWPRIYA" }, 5)).length).toBeGreaterThan(0);
     expect((await lib.search({ userId: "UNEW" }, "send launch emails", 3))[0]?.name).toBe("gtm");
+  });
+
+  it("real-site commands carry a real start URL, run as Pranav, and are slash commands", () => {
+    const cmds = seedCommands(data).filter((c) => (REAL_SITE_COMMANDS as readonly string[]).includes(c.name));
+    expect(cmds.map((c) => c.name).sort()).toEqual(["deploys", "ship", "standup", "triage"]);
+    for (const c of cmds) {
+      expect(c.startUrl).toMatch(/^https:\/\/(github\.com|vercel\.com)\//);
+      expect(c.authorName).toBe("Pranav Achar");
+      expect(c.visibility).toBe("everyone");
+      expect(c.registered).toBe("slash");
+    }
+  });
+
+  it("syncs the real-site commands into an already seeded library, keeping usage", async () => {
+    const lib = new MemoryLibrary();
+    const base = seedCommands(data).find((c) => c.name === "standup");
+    if (!base) throw new Error("standup missing from the seed");
+    await lib.upsert({ ...base, title: "Old standup", startUrl: null });
+    await lib.recordRun({
+      command: "standup",
+      userId: "U1",
+      channelId: null,
+      executor: "bsk",
+      status: "ok",
+      elapsedMs: 1,
+    });
+    expect(await syncRealSiteCommands(lib, data)).toEqual(["ship", "standup", "triage", "deploys"]);
+    const standup = await lib.get("standup");
+    expect(standup?.title).toBe("Daily standup from GitHub");
+    expect(standup?.startUrl).toBe("https://github.com/PranavAchar01?tab=overview");
+    expect(standup?.uses).toBe(1);
+    expect(await syncRealSiteCommands(lib, data)).toHaveLength(4);
+    expect(await lib.count()).toBe(4);
   });
 });

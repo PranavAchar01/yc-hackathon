@@ -43,7 +43,16 @@ features:
       description: Send the launch emails once the deliverables are forwarded
       should_escape: false
     - command: /ship
-      description: Review and merge the release PR, publish release notes, draft the launch email
+      description: Merge the newest green PR and publish a GitHub release
+      should_escape: false
+    - command: /standup
+      description: Standup from the last 24 h of GitHub activity
+      should_escape: false
+    - command: /triage
+      description: Label unlabeled GitHub issues with a type and a priority
+      should_escape: false
+    - command: /deploys
+      description: Latest Vercel production deploy, in three lines
       should_escape: false
 oauth_config:
   scopes:

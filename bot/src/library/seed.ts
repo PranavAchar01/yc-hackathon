@@ -4,9 +4,9 @@ import { z } from "zod";
 import type { CommandLibrary, NewCommand, RunRecord } from "./types.ts";
 
 /**
- * Seed library: 50 fictional Northwind commands across eng, GTM, ops, finance, people, support and design.
+ * Seed library: 52 commands (fictional Northwind ones plus Pranav's real-site ones) across eng, GTM, ops, finance, people, support and design.
  * The data lives in bot/seed/commands.json so a few can be hand-picked for the stage demo.
- * Everyone in it is made up; ids are placeholders, not real Slack users.
+ * Everyone but Pranav is made up; ids are placeholders, not real Slack users.
  */
 
 export const SEED_FILE = fileURLToPath(new URL("../../seed/commands.json", import.meta.url));
@@ -87,6 +87,27 @@ export function seedRuns(data: SeedData, now = Date.now()): RunRecord[] {
     }
   }
   return runs;
+}
+
+/** Commands that run on real sites (GitHub, Vercel). Kept in sync with the seed file on every start. */
+export const REAL_SITE_COMMANDS = ["standup", "triage", "ship", "deploys"] as const;
+
+/**
+ * Idempotent upsert of the real-site commands by name, so a hosted library that was seeded earlier picks up
+ * new steps and start URLs on the next bot start. Usage counters and run history are left alone.
+ */
+export async function syncRealSiteCommands(
+  lib: CommandLibrary,
+  data: SeedData = loadSeed(),
+  names: readonly string[] = REAL_SITE_COMMANDS,
+): Promise<string[]> {
+  const synced: string[] = [];
+  for (const c of seedCommands(data)) {
+    if (!names.includes(c.name)) continue;
+    await lib.upsert(c);
+    synced.push(c.name);
+  }
+  return synced;
 }
 
 /** Fill an empty library. Never touches a library that already has commands. */

@@ -82,6 +82,10 @@ Checks: `pnpm typecheck`, `pnpm lint` (Biome), `pnpm test` (Vitest; the Postgres
 | `/new [sentence]` | One-sentence modal; the LLM drafts name and steps into the same Publish sheet. |
 | Message shortcut **Save as command** | Turns a finished run message into a command via the same sheet. |
 | `/gtm`, `/ship`, any published command | Posts the run card and ticks steps live. |
+| `/standup` | Reads the last 24 h of GitHub activity and posts a 4 to 6 line standup. Read only. |
+| `/triage` | Labels each unlabeled open issue on over-the-shoulder (bug/feature/perf, P1/P2, needs-repro). Never closes or assigns. |
+| `/ship` | Merges the newest green PR (merge commit) and publishes the next GitHub release. |
+| `/deploys` | Reads the latest Vercel production deployment. Read only. |
 | `/do <name>` (also `/ots <name>`) | Router for commands that are not registered as real slash commands. |
 | `/commands [query]` | Ephemeral search of the library. |
 | App Home | Search, Popular on your team, Your teammates use these (you have not tried them), Yours. |
@@ -142,7 +146,7 @@ Secrets come from Keychain (see above). Everything else has a default:
 | `OTS_FORCE_SCRIPTED` | `0` | `1` = always scripted (stage panic switch) |
 | `OTS_DATABASE_URL` | `postgres://ots:ots@127.0.0.1:5544/ots` | library database (local dev credentials) |
 | `OTS_LIBRARY` | `postgres` | `memory` to run without Postgres |
-| `OTS_SEED` | `1` | seed 50 fictional commands (`seed/commands.json`) into an empty library |
+| `OTS_SEED` | `1` | seed 52 commands (`seed/commands.json`) into an empty library; the real-site ones (`standup`, `triage`, `ship`, `deploys`) are upserted by name on every start |
 | `OTS_API_PORT` / `OTS_API_HOST` | `3977` / `127.0.0.1` | `/api/commands?q=`, `/api/health`, `/mock/` |
 | `OTS_MOCK_URL` | `http://127.0.0.1:3977/mock/` | local smoke-test page |
 | `OTS_LLM` | picks by key, OpenAI first | `openai` or `anthropic` |
