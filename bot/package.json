@@ -14,8 +14,7 @@
     "format": "biome check --write src test scripts",
     "test": "vitest run",
     "stage": "tsx scripts/stage.ts",
-    "stage:down": "tsx scripts/stage.ts down",
-    "sandbox:login": "bash scripts/sandbox-login.sh"
+    "stage:down": "tsx scripts/stage.ts down"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
