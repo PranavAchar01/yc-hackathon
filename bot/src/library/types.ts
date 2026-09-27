@@ -57,6 +57,8 @@ export interface CommandLibrary {
   /** Only "everyone" commands; what the public JSON API serves. */
   publicList(query: string, limit: number): Promise<CommandRecord[]>;
   recordRun(run: RunRecord): Promise<void>;
+  /** The latest real run, as a short video: what the library grid plays. */
+  setVideo(name: string, videoUrl: string, posterUrl: string): Promise<void>;
   count(): Promise<number>;
   close(): Promise<void>;
 }

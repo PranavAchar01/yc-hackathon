@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS commands (
                ) STORED
 );
 ALTER TABLE commands ADD COLUMN IF NOT EXISTS start_url text;
+ALTER TABLE commands ADD COLUMN IF NOT EXISTS video_url text;
+ALTER TABLE commands ADD COLUMN IF NOT EXISTS poster_url text;
+ALTER TABLE commands ADD COLUMN IF NOT EXISTS video_at timestamptz;
 CREATE INDEX IF NOT EXISTS commands_search_idx ON commands USING gin (search);
 CREATE INDEX IF NOT EXISTS commands_trgm_idx ON commands USING gin ((name || ' ' || title || ' ' || description) gin_trgm_ops);
 
@@ -192,6 +195,13 @@ export class PgLibrary implements CommandLibrary {
     return this.rows(
       "SELECT * FROM commands WHERE visibility = 'everyone' ORDER BY uses DESC, name LIMIT $1",
       [limit],
+    );
+  }
+
+  async setVideo(name: string, videoUrl: string, posterUrl: string): Promise<void> {
+    await this.pool.query(
+      "UPDATE commands SET video_url = $2, poster_url = $3, video_at = now() WHERE name = $1",
+      [name, videoUrl, posterUrl],
     );
   }
 

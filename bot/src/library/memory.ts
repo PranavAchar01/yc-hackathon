@@ -150,6 +150,12 @@ export class MemoryLibrary implements CommandLibrary {
     return query.trim() ? rank(all, query, limit) : all.sort((a, b) => b.uses - a.uses).slice(0, limit);
   }
 
+  readonly videos = new Map<string, { videoUrl: string; posterUrl: string }>();
+
+  async setVideo(name: string, videoUrl: string, posterUrl: string): Promise<void> {
+    this.videos.set(name, { videoUrl, posterUrl });
+  }
+
   async recordRun(run: RunRecord): Promise<void> {
     const at = run.at ?? new Date();
     this.runs.push({ ...run, at });

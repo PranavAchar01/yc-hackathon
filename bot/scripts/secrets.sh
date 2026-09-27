@@ -27,4 +27,6 @@ ots_secret MEMORABLE_API_KEY
 ots_secret OTS_TEST_INBOX
 # Optional: hosted library database (Neon). Unset = local docker Postgres on :5544
 ots_secret OTS_DATABASE_URL
+# Optional: Vercel Blob token for run videos in the library
+ots_secret BLOB_READ_WRITE_TOKEN
 unset -f ots_secret

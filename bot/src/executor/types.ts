@@ -30,6 +30,8 @@ export interface RunResult {
   executedBy: ExecutorName;
   /** Set when the run stopped for a human (sign-in, 2FA, sudo). Not a failure: no fallback. */
   needsYou?: string;
+  /** Screenshots of the run (browser executors), in time order: the raw material for the library video. */
+  framesDir?: string;
 }
 
 export type EventSink = (event: ExecEvent) => void | Promise<void>;

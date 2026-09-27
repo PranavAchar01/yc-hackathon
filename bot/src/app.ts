@@ -67,6 +67,8 @@ export interface Deps {
   liveUrl?: string;
   /** Real Gmail sends to test plus-addresses. Absent = Send is demo-only. */
   sender?: GmailSender;
+  /** Turn a run's screenshots into the command's library video (background, best effort). */
+  publishVideo?: (command: string, framesDir: string) => Promise<void>;
 }
 
 /** Commands this app handles itself. Everything else that reaches us is a published command. */
@@ -194,7 +196,10 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
   const teaching = new Map<string, TeachSession>();
   const pendingDrafts = new Map<string, { draft: Draft; meta: SheetMeta }>();
   const cards = new Map<string, LiveCard>();
-  const runs = new Map<string, { view: RunView; card: LiveCard; skillFile: string; busy: boolean }>();
+  const runs = new Map<
+    string,
+    { view: RunView; card: LiveCard; skillFile: string; busy: boolean; framesDir?: string }
+  >();
 
   // ================================================================ /teach [name]
   app.command("/teach", async ({ command, ack, respond, client }) => {
@@ -547,6 +552,11 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
         },
       );
       executedBy = result.executedBy;
+      if (result.framesDir) {
+        const entry = runs.get(view.runId);
+        if (entry) entry.framesDir = result.framesDir;
+        if (deps.publishVideo) void deps.publishVideo(skill, result.framesDir);
+      }
       view.elapsedMs = result.elapsedMs;
       view.drafts = result.drafts;
       if (result.summary && result.drafts.length === 0) view.summary = result.summary;
@@ -661,7 +671,9 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     const total = run.view.drafts.length;
     await reply(`Sending ${total} through Gmail. Test addresses only.`);
     try {
-      const res = await deps.sender.send(run.view.drafts, () => undefined);
+      const res = await deps.sender.send(run.view.drafts, () => undefined, run.framesDir);
+      // The clip now shows the whole job: drafting in the browser, then the real sends in Gmail.
+      if (run.framesDir && deps.publishVideo) void deps.publishVideo(run.view.procedure.name, run.framesDir);
       run.view.phase = "sent";
       void run.card.update(runCard(run.view));
       await reply(

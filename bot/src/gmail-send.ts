@@ -77,6 +77,16 @@ export class GmailSender {
     },
   ) {}
 
+  private framesDir: string | undefined;
+  private frameN = 0;
+
+  /** Add a frame to the run's clip (best effort). */
+  private async frame(session: string): Promise<void> {
+    if (!this.framesDir) return;
+    const out = `${this.framesDir}/shot-${Date.now()}-g${String(++this.frameN).padStart(4, "0")}.png`;
+    await this.bsk(["screenshot", "--session", session, "--out", out]).catch(() => undefined);
+  }
+
   private bsk(args: string[]) {
     return this.o.runner([this.o.bin, ...args]);
   }
@@ -100,12 +110,17 @@ export class GmailSender {
       if (obs.stdout.includes(to)) ref = findSendRef(obs.stdout);
     }
     if (!ref) return "Send button never appeared";
+    await this.frame(session);
+    await this.frame(session);
     const click = await this.bsk(["click", ref, "--session", session]);
     if (click.code !== 0) return "Send click failed";
     for (let i = 0; i < 12; i++) {
       await this.bsk(["wait-for-navigation", "--session", session, "--timeout", "1s"]);
       const after = (await this.bsk(["observe", "--session", session])).stdout;
-      if (/Message sent/i.test(after)) return "sent";
+      if (/Message sent/i.test(after)) {
+        await this.frame(session);
+        return "sent";
+      }
     }
     return "Gmail never confirmed the send";
   }
@@ -113,7 +128,9 @@ export class GmailSender {
   async send(
     drafts: EmailDraft[],
     onProgress: (p: SendProgress) => Promise<void> | void,
+    framesDir?: string,
   ): Promise<SendResult> {
+    this.framesDir = framesDir;
     const result: SendResult = { sent: [], failed: [] };
     const start = await this.bsk([
       "session",

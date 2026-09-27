@@ -219,12 +219,12 @@ export class BskExecutor implements Executor {
     const shoot = async () => {
       if (shooting) return;
       shooting = true;
-      const out = join(shots, `shot-${String(++shotN).padStart(3, "0")}.png`);
+      const out = join(shots, `shot-${Date.now()}-${String(++shotN).padStart(4, "0")}.png`);
       const r = await this.bsk(["screenshot", "--session", session, "--out", out]).catch(() => null);
       shooting = false;
       if (r?.code === 0) await onEvent({ kind: "screenshot", path: out });
     };
-    const ticker = setInterval(() => void shoot(), this.o.screenshotEveryMs ?? 4_000);
+    const ticker = setInterval(() => void shoot(), this.o.screenshotEveryMs ?? 1_000);
 
     const actions: TraceCall[] = [];
     const done = new Set<number>();
@@ -311,6 +311,7 @@ export class BskExecutor implements Executor {
       drafts: queued.length > 0 ? queued : p.name === "gtm" ? demoDrafts(p.teacher) : [],
       summary,
       executedBy: "bsk",
+      framesDir: shots,
     };
   }
 

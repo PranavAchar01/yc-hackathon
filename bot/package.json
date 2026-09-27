@@ -19,6 +19,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
     "@slack/bolt": "^4",
+    "@vercel/blob": "^2.8.0",
     "openai": "^7.23.0",
     "pg": "^8.23.0",
     "zod": "^4"

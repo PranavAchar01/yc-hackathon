@@ -24,6 +24,7 @@ import { Outbox } from "./mock-site.ts";
 import { Publisher } from "./publish.ts";
 import { CommandRegistrar, SlackManifestApi } from "./registrar.ts";
 import { CommandSearch, GBrainIndex } from "./search.ts";
+import { buildVideo, uploadVideo } from "./video.ts";
 
 const config = loadConfig();
 const runner = defaultRunner();
@@ -165,9 +166,24 @@ log.info(
     : "Send: demo only (no OTS_TEST_INBOX)",
 );
 
+const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+async function publishVideo(command: string, framesDir: string): Promise<void> {
+  if (!blobToken) return;
+  try {
+    const built = await buildVideo(framesDir, runner);
+    if (!built) return;
+    const up = await uploadVideo(built, command, blobToken);
+    await library.setVideo(command, up.videoUrl, up.posterUrl);
+    log.info(`video: /${command} ${built.frames} frames -> ${up.videoUrl}`);
+  } catch (err) {
+    log.warn(`video: /${command} failed: ${err instanceof Error ? err.message : err}`);
+  }
+}
+
 const { app, state } = createApp({
   config,
   sender,
+  publishVideo,
   executor,
   extractor,
   drafter,
