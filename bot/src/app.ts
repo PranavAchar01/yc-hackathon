@@ -82,16 +82,25 @@ class LiveCard {
 
   update(card: Card): Promise<void> {
     this.chain = this.chain
-      .then(async () => {
-        await this.client.chat.update({
-          channel: this.channel,
-          ts: this.ts,
-          text: card.text,
-          blocks: card.blocks,
-        });
-      })
-      .catch((err: unknown) => log.warn("chat.update failed", err instanceof Error ? err.message : err));
+      .then(() => this.send(card.blocks, card.text))
+      .catch(async (err: unknown) => {
+        // A just-uploaded screenshot is not usable until Slack finishes processing it, and Slack then rejects
+        // the whole card (invalid_blocks). The step ticks matter more: resend without the image; the next
+        // update shows it once it is ready.
+        const withoutImage = card.blocks.filter((b) => b.type !== "image");
+        if (withoutImage.length !== card.blocks.length && /invalid_blocks/.test(String(err))) {
+          await this.send(withoutImage, card.text).catch((e: unknown) =>
+            log.warn("chat.update failed", e instanceof Error ? e.message : e),
+          );
+          return;
+        }
+        log.warn("chat.update failed", err instanceof Error ? err.message : err);
+      });
     return this.chain;
+  }
+
+  private async send(blocks: Card["blocks"], text: string): Promise<void> {
+    await this.client.chat.update({ channel: this.channel, ts: this.ts, text, blocks });
   }
 }
 

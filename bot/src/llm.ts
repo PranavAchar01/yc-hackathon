@@ -55,7 +55,7 @@ export interface LlmProvider {
   agent(o: { system: string; tools: ToolSpec[]; firstMessage: string; effort?: Effort }): AgentChat;
 }
 
-// ------------------------------------------------------------------ OpenAI (official `openai` SDK, Chat Completions)
+// ------------------------------------------------------------------ OpenAI (official `openai` SDK: Chat Completions for structured output, Responses for tools)
 
 export const DEFAULT_OPENAI_MODEL = "gpt-5.5";
 
@@ -78,7 +78,7 @@ export function strictJsonSchema(schema: z.ZodType): Record<string, unknown> {
   return walk(z.toJSONSchema(schema)) as Record<string, unknown>;
 }
 
-type OpenAIClient = Pick<OpenAI, "chat" | "models">;
+type OpenAIClient = Pick<OpenAI, "chat" | "responses" | "models">;
 
 function openaiParts(content: Part[]): OpenAI.Chat.ChatCompletionContentPart[] {
   return content.map((p) =>
@@ -146,63 +146,71 @@ export class OpenAIProvider implements LlmProvider {
     return o.schema.parse(JSON.parse(text));
   }
 
+  /**
+   * The tool loop runs on the Responses API: gpt-5.x rejects function tools together with reasoning
+   * effort on /v1/chat/completions. Nothing is stored server-side, so reasoning items travel back
+   * encrypted with the history.
+   */
   agent(o: { system: string; tools: ToolSpec[]; firstMessage: string; effort?: Effort }): AgentChat {
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: "system", content: o.system },
-      { role: "user", content: o.firstMessage },
-    ];
-    const tools: OpenAI.Chat.ChatCompletionTool[] = o.tools.map((t) => ({
+    const input: OpenAI.Responses.ResponseInputItem[] = [{ role: "user", content: o.firstMessage }];
+    const tools: OpenAI.Responses.FunctionTool[] = o.tools.map((t) => ({
       type: "function",
-      function: { name: t.name, description: t.description, parameters: t.parameters, strict: false },
+      name: t.name,
+      description: t.description,
+      parameters: t.parameters,
+      strict: false,
     }));
     const client = this.client;
     const model = this.model;
     return {
       async next() {
-        const res = await client.chat.completions.create({
+        const res = await client.responses.create({
           model,
-          reasoning_effort: o.effort ?? "medium",
-          max_completion_tokens: 16000,
-          messages,
+          instructions: o.system,
+          input,
           tools,
           tool_choice: "auto",
+          reasoning: { effort: o.effort ?? "low" },
+          max_output_tokens: 16000,
+          store: false,
+          include: ["reasoning.encrypted_content"],
         });
-        const msg = res.choices[0]?.message;
-        if (!msg) return { calls: [], text: "", refused: false };
-        messages.push(msg);
+        input.push(...(res.output as OpenAI.Responses.ResponseInputItem[]));
         const calls: ToolCall[] = [];
-        for (const c of msg.tool_calls ?? []) {
-          if (c.type !== "function") continue;
-          let input: unknown = {};
+        let refused = false;
+        for (const item of res.output) {
+          if (item.type === "message") refused ||= item.content.some((c) => c.type === "refusal");
+          if (item.type !== "function_call") continue;
+          let args: unknown = {};
           try {
-            input = JSON.parse(c.function.arguments || "{}");
+            args = JSON.parse(item.arguments || "{}");
           } catch {
-            input = { __invalid_json: c.function.arguments };
+            args = { __invalid_json: item.arguments };
           }
-          calls.push({ id: c.id, name: c.function.name, input });
+          calls.push({ id: item.call_id, name: item.name, input: args });
         }
-        return { calls, text: msg.content ?? "", refused: !!msg.refusal };
+        return { calls, text: res.output_text ?? "", refused };
       },
       submit(results) {
-        const images: OpenAI.Chat.ChatCompletionContentPart[] = [];
+        const images: OpenAI.Responses.ResponseInputImage[] = [];
         for (const r of results) {
           const isImage = typeof r.content !== "string";
-          messages.push({
-            role: "tool",
-            tool_call_id: r.id,
-            content: isImage
+          input.push({
+            type: "function_call_output",
+            call_id: r.id,
+            output: isImage
               ? "Screenshot attached in the next message."
               : `${r.isError ? "ERROR: " : ""}${r.content}`,
           });
           if (typeof r.content !== "string")
             images.push({
-              type: "image_url",
-              image_url: { url: `data:image/png;base64,${r.content.imagePngBase64}` },
+              type: "input_image",
+              image_url: `data:image/png;base64,${r.content.imagePngBase64}`,
+              detail: "auto",
             });
         }
-        // Tool messages are text-only in Chat Completions, so screenshots follow as a user image.
         if (images.length)
-          messages.push({ role: "user", content: [{ type: "text", text: "Screenshot:" }, ...images] });
+          input.push({ role: "user", content: [{ type: "input_text", text: "Screenshot:" }, ...images] });
       },
     };
   }

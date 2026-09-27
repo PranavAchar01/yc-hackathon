@@ -93,8 +93,20 @@ export class GBrainIndex {
     await mkdir(this.pagesDir, { recursive: true });
     await writeFile(join(this.pagesDir, `${c.name}.md`), commandPage(c), "utf8");
     if (!(await this.available())) return false;
-    const args = [...this.bin, "import", this.pagesDir, "--json", ...(this.embed ? [] : ["--no-embed"])];
-    const res = await this.runner(args);
+    return this.importPages();
+  }
+
+  /** Import the pages dir; if embedding is on but the brain was set up without it, fall back to keyword-only. */
+  private async importPages(): Promise<boolean> {
+    const base = [...this.bin, "import", this.pagesDir, "--json"];
+    if (this.embed) {
+      const res = await this.runner(base);
+      if (res.code === 0) return true;
+      log.warn(
+        `gbrain import with embeddings failed, importing keyword-only: ${res.stderr.trim().slice(0, 160)}`,
+      );
+    }
+    const res = await this.runner([...base, "--no-embed"]);
     if (res.code !== 0) log.warn(`gbrain import failed: ${res.stderr.trim().slice(0, 200)}`);
     return res.code === 0;
   }
@@ -104,14 +116,7 @@ export class GBrainIndex {
     await mkdir(this.pagesDir, { recursive: true });
     for (const c of commands) await writeFile(join(this.pagesDir, `${c.name}.md`), commandPage(c), "utf8");
     if (!(await this.available())) return false;
-    const res = await this.runner([
-      ...this.bin,
-      "import",
-      this.pagesDir,
-      "--json",
-      ...(this.embed ? [] : ["--no-embed"]),
-    ]);
-    return res.code === 0;
+    return this.importPages();
   }
 
   async search(query: string): Promise<string[] | null> {

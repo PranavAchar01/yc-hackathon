@@ -15,7 +15,8 @@ import {
 // ---------------------------------------------------------------- fakes for both SDKs
 
 function fakeOpenAI(replies: Array<Record<string, unknown>>, models: string[] = ["gpt-5.5", "gpt-5.4-mini"]) {
-  const requests: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming[] = [];
+  // biome-ignore lint/suspicious/noExplicitAny: requests from two different OpenAI endpoints
+  const requests: any[] = [];
   const client = {
     chat: {
       completions: {
@@ -29,13 +30,21 @@ function fakeOpenAI(replies: Array<Record<string, unknown>>, models: string[] = 
         },
       },
     },
+    responses: {
+      create: async (p: Record<string, unknown>) => {
+        requests.push(JSON.parse(JSON.stringify(p)));
+        const r = replies.shift();
+        if (!r) throw new Error("no more replies");
+        return r;
+      },
+    },
     models: {
       list: () =>
         (async function* () {
           for (const id of models) yield { id };
         })(),
     },
-  } as unknown as Pick<OpenAI, "chat" | "models">;
+  } as unknown as Pick<OpenAI, "chat" | "responses" | "models">;
   return { client, requests };
 }
 
@@ -128,18 +137,22 @@ describe("OpenAIProvider", () => {
     ).rejects.toThrow();
   });
 
-  it("runs a function-calling loop and feeds screenshots back as a user image", async () => {
+  it("runs the tool loop on the Responses API and feeds screenshots back as a user image", async () => {
     const { client, requests } = fakeOpenAI([
       {
-        content: null,
-        tool_calls: [
-          { id: "c1", type: "function", function: { name: "screenshot", arguments: "{}" } },
-          { id: "c2", type: "function", function: { name: "click", arguments: '{"ref":"@e3"}' } },
+        output: [
+          { type: "reasoning", id: "r1", summary: [], encrypted_content: "enc" },
+          { type: "function_call", id: "fc1", call_id: "c1", name: "screenshot", arguments: "{}" },
+          { type: "function_call", id: "fc2", call_id: "c2", name: "click", arguments: '{"ref":"@e3"}' },
         ],
+        output_text: "",
       },
-      { content: "done", tool_calls: [] },
+      {
+        output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: "done" }] }],
+        output_text: "done",
+      },
     ]);
-    const chat = new OpenAIProvider(undefined, "gpt-5.4-mini", client).agent({
+    const chat = new OpenAIProvider(undefined, "gpt-5.5", client).agent({
       system: "sys",
       firstMessage: "go",
       tools: [
@@ -161,12 +174,24 @@ describe("OpenAIProvider", () => {
     ]);
     const t2 = await chat.next();
     expect(t2.calls).toEqual([]);
-    const msgs = requests[1]?.messages ?? [];
-    const roles = msgs.map((m) => m.role);
-    expect(roles).toEqual(["system", "user", "assistant", "tool", "tool", "user"]);
-    expect(JSON.stringify(msgs[4])).toContain("ERROR: not found");
-    expect(JSON.stringify(msgs[5])).toContain("data:image/png;base64,PNG");
-    expect(requests[0]?.tools?.[0]).toMatchObject({ type: "function", function: { name: "click" } });
+    expect(t2.text).toBe("done");
+    // gpt-5.x rejects function tools + reasoning effort on chat completions: tools must go through Responses.
+    expect(requests[0]).toMatchObject({ model: "gpt-5.5", instructions: "sys", store: false });
+    expect(requests[0].reasoning).toBeDefined();
+    expect(requests[0].tools[0]).toMatchObject({ type: "function", name: "click" });
+    const items = requests[1].input;
+    const kinds = items.map((i: { type?: string; role?: string }) => i.type ?? i.role);
+    expect(kinds).toEqual([
+      "user",
+      "reasoning",
+      "function_call",
+      "function_call",
+      "function_call_output",
+      "function_call_output",
+      "user",
+    ]);
+    expect(JSON.stringify(items[5])).toContain("ERROR: not found");
+    expect(JSON.stringify(items[6])).toContain("data:image/png;base64,PNG");
   });
 
   it("warns when the configured model is not available", async () => {
