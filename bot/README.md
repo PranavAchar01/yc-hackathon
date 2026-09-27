@@ -11,7 +11,7 @@ Slack (Socket Mode) ── /teach /new /do /<command> /commands, App Home, "Save
    ├─ memory      Memorable CLI: records each procedure and each browser run, recalls before the next run
    ├─ publish     library row + QM skill file + GBrain page + Memorable + a real slash command
    │              (apps.manifest.update), or the `/do <name>` router when no config token
-   └─ executor    bsk (Claude tool loop driving your real Chrome via BrowserSkill) | qm | scripted (stage-safe)
+   └─ executor    bsk (LLM tool loop driving your real Chrome via BrowserSkill) | qm | scripted (stage-safe)
 ```
 
 ## What Pranav does himself (the bot never creates accounts, installs apps or enters passwords)
@@ -29,18 +29,23 @@ Slack (Socket Mode) ── /teach /new /do /<command> /commands, App Home, "Save
    - Optional, for real slash commands on Publish: **Basic Information** > copy **App ID**; then
      https://api.slack.com/apps (top of the list) > **Your App Configuration Tokens** > **Generate Token** for the
      workspace, copy both the access token and the refresh token.
-5. **Put secrets in the login Keychain** (each command prompts for the value; nothing lands in files or history):
+5. **Put secrets in the login Keychain.** Copy each value, then save it from the clipboard. Do not use the
+   interactive `-w` prompt: it silently truncates at 128 characters, and OpenAI keys are longer (164).
+   `pbpaste` keeps the value out of files and shell history; `-U` updates an existing item.
    ```sh
-   security add-generic-password -a "$USER" -s SLACK_BOT_TOKEN -w
-   security add-generic-password -a "$USER" -s SLACK_APP_TOKEN -w
-   security add-generic-password -a "$USER" -s ANTHROPIC_API_KEY -w
+   # required: Slack + ONE LLM key (OpenAI preferred when both exist)
+   security add-generic-password -U -a "$USER" -s SLACK_BOT_TOKEN -w "$(pbpaste)"
+   security add-generic-password -U -a "$USER" -s SLACK_APP_TOKEN -w "$(pbpaste)"
+   security add-generic-password -U -a "$USER" -s OPENAI_API_KEY -w "$(pbpaste)"     # or ANTHROPIC_API_KEY
    # optional
-   security add-generic-password -a "$USER" -s SLACK_APP_ID -w
-   security add-generic-password -a "$USER" -s SLACK_CONFIG_TOKEN -w
-   security add-generic-password -a "$USER" -s SLACK_CONFIG_REFRESH_TOKEN -w
-   security add-generic-password -a "$USER" -s OPENAI_API_KEY -w          # GBrain semantic search
-   security add-generic-password -a "$USER" -s OTS_QM_SIGNING_SECRET -w   # only for OTS_EXECUTOR=qm
+   security add-generic-password -U -a "$USER" -s SLACK_APP_ID -w "$(pbpaste)"
+   security add-generic-password -U -a "$USER" -s SLACK_CONFIG_TOKEN -w "$(pbpaste)"
+   security add-generic-password -U -a "$USER" -s SLACK_CONFIG_REFRESH_TOKEN -w "$(pbpaste)"
+   security add-generic-password -U -a "$USER" -s ANTHROPIC_API_KEY -w "$(pbpaste)"
+   security add-generic-password -U -a "$USER" -s MEMORABLE_API_KEY -w "$(pbpaste)"
+   security add-generic-password -U -a "$USER" -s OTS_QM_SIGNING_SECRET -w "$(pbpaste)" # only for OTS_EXECUTOR=qm
    ```
+   Check a saved length without printing it: `security find-generic-password -s OPENAI_API_KEY -w | wc -c`.
 6. **Memorable** (procedural memory): `npx memorable-cli@latest login` (opens a browser), then
    `npx memorable-cli@latest enable` (consent; nothing is stored until you run it).
 7. **GBrain** (search): Bun is already at `~/.bun/bin/bun`. Install with
@@ -73,8 +78,8 @@ Checks: `pnpm typecheck`, `pnpm lint` (Biome), `pnpm test` (Vitest; the Postgres
 
 | Command | What it does |
 | --- | --- |
-| `/teach [name]` | "Watching over your shoulder" card with Stop. Captures the Mac screen every 1.5 s (`screencapture -x`). On Stop, Claude (`claude-opus-5-5`, structured output, zod-validated) writes the steps and the Publish sheet opens: name, one line, icon, steps, who can use it. |
-| `/new [sentence]` | One-sentence modal; Claude drafts name and steps into the same Publish sheet. |
+| `/teach [name]` | "Watching over your shoulder" card with Stop. Captures the Mac screen every 1.5 s (`screencapture -x`). On Stop, the LLM (vision + structured output, zod-validated) writes the steps and the Publish sheet opens: name, one line, icon, steps, who can use it. |
+| `/new [sentence]` | One-sentence modal; the LLM drafts name and steps into the same Publish sheet. |
 | Message shortcut **Save as command** | Turns a finished run message into a command via the same sheet. |
 | `/gtm`, `/ship`, any published command | Posts the run card and ticks steps live. |
 | `/do <name>` (also `/ots <name>`) | Router for commands that are not registered as real slash commands. |
@@ -83,14 +88,29 @@ Checks: `pnpm typecheck`, `pnpm lint` (Biome), `pnpm test` (Vitest; the Postgres
 
 Send on the GTM card never sends email: it moves the card to done and replies "12 emails sent. Priya, done."
 
+## LLM provider
+
+All three model call sites (`/teach` frames to steps, `/new` and Save-as drafts, the bsk agent loop) go through
+`src/llm.ts`, with two implementations:
+
+- **OpenAI** (official `openai` SDK, Chat Completions): image input as data URLs, strict `json_schema` structured
+  output re-validated with zod, function calling for the agent loop. Model `OTS_OPENAI_MODEL`, default `gpt-5.5`
+  (in the SDK's `ChatModel` list and used in its README for vision and tool examples). Optional
+  `OTS_OPENAI_FAST_MODEL` (for example `gpt-5.4-mini`) is used only for the per-step bsk loop, if latency matters.
+  At startup the bot calls `models.list` once and warns if a configured model is not available to the key.
+- **Anthropic**: `OTS_ANTHROPIC_MODEL`, default `claude-opus-5-5`.
+
+`OTS_LLM=openai|anthropic` forces one; otherwise the bot uses whichever key exists, preferring OpenAI. With no key,
+`/teach` and `/new` explain that a key is missing and every run uses the scripted executor.
+
 ## Executors
 
 `OTS_EXECUTOR=bsk|qm|scripted` (default `scripted`; `pnpm run stage` uses `bsk`). Whatever is chosen goes through
-a guard: if its health check is red (no bsk daemon or no connected Chrome, no Claude key), or
+a guard: if its health check is red (no bsk daemon or no connected Chrome, no LLM key), or
 `OTS_FORCE_SCRIPTED=1`, or it fails mid-run (for example consent declined), the run finishes on the scripted
 executor with the same card and nothing on screen says so (only the log does).
 
-- **bsk** (`src/executor/bsk.ts`): a tool-use loop on `claude-opus-5-5` whose tools wrap the `bsk` CLI
+- **bsk** (`src/executor/bsk.ts`): a tool-use loop on the configured LLM whose tools wrap the `bsk` CLI
   (0.3.1): `snapshot`, `click`, `fill`, `press`, `navigate`, `select`, `wait-for-navigation`, `screenshot`,
   `scroll-to`, plus `step_done`, `needs_human`, `finish`. Lifecycle is `bsk session start --json` /
   `bsk session stop <id>` (always stopped, success or failure). The procedure's steps and `memorable recall`
@@ -125,6 +145,9 @@ Secrets come from Keychain (see above). Everything else has a default:
 | `OTS_SEED` | `1` | seed 50 fictional commands (`seed/commands.json`) into an empty library |
 | `OTS_API_PORT` / `OTS_API_HOST` | `3977` / `127.0.0.1` | `/api/commands?q=`, `/api/health`, `/mock/` |
 | `OTS_MOCK_URL` | `http://127.0.0.1:3977/mock/` | local smoke-test page |
+| `OTS_LLM` | picks by key, OpenAI first | `openai` or `anthropic` |
+| `OTS_OPENAI_MODEL` / `OTS_OPENAI_FAST_MODEL` | `gpt-5.5` / unset | OpenAI models (fast one only for the bsk loop) |
+| `OTS_ANTHROPIC_MODEL` | `claude-opus-5-5` | Anthropic model |
 | `BSK_BIN`, `BSK_TIMEOUT_MS`, `BSK_EFFORT` | `~/.local/bin/bsk`, `300000`, `medium` | BrowserSkill run settings |
 | `OTS_WITH_QM` | `0` | `pnpm run stage` also starts QM |
 | `OTS_QM_URL` | `http://localhost:8080` | QM dev instance |

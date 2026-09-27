@@ -1,7 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { EXTRACTION_MODEL, parseExtraction } from "./extract.ts";
+import { parseExtraction } from "./extract.ts";
+import type { LlmProvider } from "./llm.ts";
 import { toSkillName } from "./procedure.ts";
 import { RESERVED } from "./registrar.ts";
 
@@ -64,7 +63,7 @@ export function suggestName(title: string, hint = ""): string {
   return "my-command";
 }
 
-const DraftSchema = z.object({
+export const DraftSchema = z.object({
   name: z
     .string()
     .describe(
@@ -99,24 +98,18 @@ export interface CommandDrafter {
   fromThread(messageText: string): Promise<Draft>;
 }
 
-export class ClaudeDrafter implements CommandDrafter {
-  private readonly client: Anthropic;
-
-  constructor(apiKey: string) {
-    this.client = new Anthropic({ apiKey });
-  }
+export class LlmDrafter implements CommandDrafter {
+  constructor(private readonly llm: LlmProvider) {}
 
   private async draft(prompt: string): Promise<Draft> {
-    const res = await this.client.messages.parse({
-      model: EXTRACTION_MODEL,
-      max_tokens: 16000,
+    const out = await this.llm.structured({
       system: SYSTEM,
-      output_config: { effort: "medium", format: zodOutputFormat(DraftSchema) },
-      messages: [{ role: "user", content: prompt }],
+      schemaName: "command_draft",
+      schema: DraftSchema,
+      effort: "medium",
+      content: [{ type: "text", text: prompt }],
     });
-    if (res.stop_reason === "refusal") throw new Error("the model declined this one");
-    if (res.parsed_output === null) throw new Error(`no structured output (stop: ${res.stop_reason})`);
-    return normalizeDraft(res.parsed_output);
+    return normalizeDraft(out);
   }
 
   fromSentence(sentence: string): Promise<Draft> {

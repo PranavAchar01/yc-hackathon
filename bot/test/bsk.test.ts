@@ -1,7 +1,7 @@
-import type Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it } from "vitest";
 import { BskExecutor, looksSecret, parseSessionId, systemPrompt, TOOLS } from "../src/executor/bsk.ts";
 import type { ExecEvent, RunTask } from "../src/executor/types.ts";
+import type { LlmProvider, ToolResult } from "../src/llm.ts";
 import type { CliResult } from "../src/memorable.ts";
 import { Outbox } from "../src/mock-site.ts";
 
@@ -24,24 +24,8 @@ const STATUS_OK = JSON.stringify({ browsers: [{ instance_id: "3ca255cd" }], sess
 const SNAP =
   '- textbox "Email" [ref=e3]\n- textbox "Password" [ref=e4]\n- button "Merge pull request" [ref=e7]';
 
-type Msg = Anthropic.Message;
-const msg = (content: Array<Record<string, unknown>>): Msg =>
-  ({
-    id: "m",
-    type: "message",
-    role: "assistant",
-    model: "claude-opus-5-5",
-    content,
-    stop_reason: "tool_use",
-    stop_sequence: null,
-    usage: { input_tokens: 1, output_tokens: 1 },
-  }) as unknown as Msg;
-const use = (id: string, name: string, input: Record<string, unknown>) => ({
-  type: "tool_use",
-  id,
-  name,
-  input,
-});
+type Turn = Array<{ id: string; name: string; input: Record<string, unknown> }>;
+const use = (id: string, name: string, input: Record<string, unknown>) => ({ id, name, input });
 
 function fakeBsk(overrides: Partial<Record<string, CliResult>> = {}) {
   const calls: string[][] = [];
@@ -58,27 +42,38 @@ function fakeBsk(overrides: Partial<Record<string, CliResult>> = {}) {
   return { calls, runner };
 }
 
-function fakeClaude(script: Msg[]) {
-  const seen: Anthropic.MessageCreateParams[] = [];
-  const client = {
-    messages: {
-      create: async (params: Anthropic.MessageCreateParams) => {
-        seen.push(structuredClone(params));
-        const next = script.shift();
-        if (!next) throw new Error("script exhausted");
-        return next;
-      },
+/** Fake LLM: scripted tool-call turns; records every batch of tool results it receives. */
+function fakeLlm(script: Turn[]) {
+  const submitted: ToolResult[][] = [];
+  const agents: Array<{ system: string; tools: string[] }> = [];
+  const llm: LlmProvider = {
+    name: "openai",
+    model: "gpt-5.5",
+    structured: async () => {
+      throw new Error("not used");
     },
-  } as unknown as Pick<Anthropic, "messages">;
-  return { client, seen };
+    agent: (o) => {
+      agents.push({ system: o.system, tools: o.tools.map((t) => t.name) });
+      return {
+        next: async () => {
+          const calls = script.shift();
+          if (!calls) throw new Error("script exhausted");
+          return { calls, text: "", refused: false };
+        },
+        submit: (r) => {
+          submitted.push(r);
+        },
+      };
+    },
+  };
+  return { llm, submitted, agents };
 }
 
-const make = (runner: (argv: string[]) => Promise<CliResult>, client: Pick<Anthropic, "messages">) =>
+const make = (runner: (argv: string[]) => Promise<CliResult>, llm: LlmProvider | null) =>
   new BskExecutor({
     bin: "bsk",
     runner,
-    apiKey: undefined,
-    client,
+    llm,
     defaultStartUrl: "http://127.0.0.1:3977/mock/",
     outbox: new Outbox(),
     memorable: null,
@@ -123,29 +118,30 @@ describe("bsk helpers", () => {
       "finish",
     ]);
     for (const t of TOOLS)
-      expect((t.input_schema as { additionalProperties?: boolean }).additionalProperties).toBe(false);
+      expect((t.parameters as { additionalProperties?: boolean }).additionalProperties).toBe(false);
   });
 });
 
 describe("BskExecutor", () => {
   it("is healthy only with a connected browser", async () => {
-    const { client } = fakeClaude([]);
-    expect(await make(fakeBsk().runner, client).healthy()).toBe(true);
+    const { llm } = fakeLlm([]);
+    expect(await make(fakeBsk().runner, llm).healthy()).toBe(true);
+    expect(await make(fakeBsk().runner, null).healthy()).toBe(false);
     const none = fakeBsk({ status: { code: 0, stdout: '{"browsers":[]}', stderr: "" } });
-    expect(await make(none.runner, client).healthy()).toBe(false);
+    expect(await make(none.runner, llm).healthy()).toBe(false);
     const down = fakeBsk({ status: { code: 1, stdout: "", stderr: "daemon not running" } });
-    expect(await make(down.runner, client).healthy()).toBe(false);
+    expect(await make(down.runner, llm).healthy()).toBe(false);
   });
 
   it("runs the tool loop through bsk, ticks steps, and always stops the session", async () => {
     const { calls, runner } = fakeBsk();
-    const { client, seen } = fakeClaude([
-      msg([use("t1", "snapshot", {})]),
-      msg([use("t2", "click", { ref: "@e7" }), use("t3", "step_done", { step: 1 })]),
-      msg([use("t4", "step_done", { step: 2 }), use("t5", "finish", { summary: "Merged the PR." })]),
+    const { llm, submitted, agents } = fakeLlm([
+      [use("t1", "snapshot", {})],
+      [use("t2", "click", { ref: "@e7" }), use("t3", "step_done", { step: 1 })],
+      [use("t4", "step_done", { step: 2 }), use("t5", "finish", { summary: "Merged the PR." })],
     ]);
     const events: ExecEvent[] = [];
-    const res = await make(runner, client).run(task, (e) => {
+    const res = await make(runner, llm).run(task, (e) => {
       events.push(e);
     });
     expect(res).toMatchObject({ executedBy: "bsk", summary: "Merged the PR.", drafts: [] });
@@ -160,29 +156,26 @@ describe("BskExecutor", () => {
       { kind: "step", index: 1, state: "done" },
     ]);
     expect(events.some((e) => e.kind === "screenshot")).toBe(true);
-    expect(seen[0]?.model).toBe("claude-opus-5-5");
-    // Every tool_use got exactly one tool_result in the next user turn.
-    const last = seen.at(-1)?.messages.at(-1);
-    expect(Array.isArray(last?.content) && last.content.map((b) => (b as { type: string }).type)).toEqual([
-      "tool_result",
-      "tool_result",
-    ]);
+    expect(agents[0]?.tools).toContain("snapshot");
+    expect(agents[0]?.system).toContain("1. Open the PR");
+    // Every tool call got exactly one result, matched by id.
+    expect(submitted.map((batch) => batch.map((r) => r.id))).toEqual([["t1"], ["t2", "t3"], ["t4", "t5"]]);
   });
 
   it("refuses to type into a password field and hands sign-in to the human", async () => {
     const { calls, runner } = fakeBsk();
-    const { client, seen } = fakeClaude([
-      msg([use("t1", "snapshot", {})]),
-      msg([use("t2", "fill", { ref: "@e4", value: "hunter2" })]),
-      msg([use("t3", "needs_human", { reason: "GitHub sign-in" })]),
+    const { llm, submitted } = fakeLlm([
+      [use("t1", "snapshot", {})],
+      [use("t2", "fill", { ref: "@e4", value: "hunter2" })],
+      [use("t3", "needs_human", { reason: "GitHub sign-in" })],
     ]);
     const events: ExecEvent[] = [];
-    const res = await make(runner, client).run(task, (e) => {
+    const res = await make(runner, llm).run(task, (e) => {
       events.push(e);
     });
     expect(calls.some((c) => c[1] === "fill")).toBe(false);
-    const refused = seen[2]?.messages.at(-1)?.content;
-    expect(JSON.stringify(refused)).toContain("Refused");
+    expect(submitted[1]?.[0]).toMatchObject({ id: "t2", isError: true });
+    expect(JSON.stringify(submitted[1])).toContain("Refused");
     expect(res.needsYou).toBe("Needs you: sign in");
     expect(events).toContainEqual({ kind: "needs_you", message: "Needs you: sign in" });
     expect(calls.at(-1)).toEqual(["bsk", "session", "stop", "s-42"]);
@@ -190,17 +183,17 @@ describe("BskExecutor", () => {
 
   it("rejects malformed tool input without calling bsk", async () => {
     const { calls, runner } = fakeBsk();
-    const { client } = fakeClaude([
-      msg([use("t1", "click", { ref: "#submit" })]),
-      msg([use("t2", "finish", { summary: "ok" })]),
+    const { llm } = fakeLlm([
+      [use("t1", "click", { ref: "#submit" })],
+      [use("t2", "finish", { summary: "ok" })],
     ]);
-    await make(runner, client).run(task, () => {});
+    await make(runner, llm).run(task, () => {});
     expect(calls.some((c) => c[1] === "click")).toBe(false);
   });
 
   it("throws when the session cannot start, so the guard falls back to scripted", async () => {
     const { runner } = fakeBsk({ "session start": { code: 1, stdout: "", stderr: "consent denied" } });
-    const { client } = fakeClaude([]);
-    await expect(make(runner, client).run(task, () => {})).rejects.toThrow(/consent denied/);
+    const { llm } = fakeLlm([]);
+    await expect(make(runner, llm).run(task, () => {})).rejects.toThrow(/consent denied/);
   });
 });

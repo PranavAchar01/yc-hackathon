@@ -251,13 +251,13 @@ async function up() {
   else add({ name: "QM", ok: true, optional: true, detail: "skipped (OTS_WITH_QM=0, not on the demo path)" });
 
   await step("bot", async () => {
-    const missing = ["SLACK_BOT_TOKEN", "SLACK_APP_TOKEN", "ANTHROPIC_API_KEY"].filter(
-      (n) => !keychainHas(n),
-    );
+    const missing = ["SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"].filter((n) => !keychainHas(n));
+    const llmKey = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"].find((n) => keychainHas(n));
+    if (!llmKey) missing.push("OPENAI_API_KEY (or ANTHROPIC_API_KEY)");
     add({
       name: "Keychain secrets",
       ok: missing.length === 0,
-      detail: missing.length === 0 ? "Slack + Claude keys present" : `missing: ${missing.join(", ")}`,
+      detail: missing.length === 0 ? `Slack tokens + ${llmKey}` : `missing: ${missing.join(", ")}`,
     });
     if (missing.some((n) => n.startsWith("SLACK_"))) {
       add({ name: "Bot", ok: false, detail: "not started: Slack tokens missing" });

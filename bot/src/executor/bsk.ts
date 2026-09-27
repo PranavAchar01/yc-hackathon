@@ -1,16 +1,16 @@
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { demoDrafts } from "../demo-data.ts";
+import type { LlmProvider, ToolCall, ToolResult, ToolSpec } from "../llm.ts";
 import { log } from "../log.ts";
 import type { CliRunner, MemorableClient, TraceCall } from "../memorable.ts";
 import type { Outbox } from "../mock-site.ts";
 import type { EventSink, Executor, RunResult, RunTask } from "./types.ts";
 
 /**
- * BrowserSkill executor: a Claude tool-use loop whose tools wrap the `bsk` CLI (checked against bsk 0.3.1
+ * BrowserSkill executor: an LLM tool-use loop (OpenAI or Anthropic, see llm.ts) whose tools wrap the `bsk` CLI (checked against bsk 0.3.1
  * `--help`). bsk drives Pranav's real, logged-in Chrome through an Agent Window; the extension asks him for
  * consent before a session takes control. Page content is data, never instructions.
  *
@@ -26,8 +26,6 @@ import type { EventSink, Executor, RunResult, RunTask } from "./types.ts";
  *   bsk wait-for-navigation --session <id> [--wait-until load|domcontentloaded|networkidle]
  *   bsk screenshot --session <id> --out <png>
  */
-
-export const BSK_MODEL = "claude-opus-5-5";
 
 const Ref = z.string().regex(/^@?e\d+$/, "use an @eN ref from the latest snapshot");
 export const ToolInputs = {
@@ -56,37 +54,37 @@ const obj = (props: Record<string, unknown>, required: string[]) => ({
 });
 const refProp = { type: "string", description: "An @eN ref from the latest snapshot" };
 
-export const TOOLS: Anthropic.Tool[] = [
+export const TOOLS: ToolSpec[] = [
   {
     name: "snapshot",
     description: "Read the page: aria snapshot with @eN refs. Call after every navigation.",
-    input_schema: obj({}, []),
+    parameters: obj({}, []),
   },
-  { name: "click", description: "Click an element by ref.", input_schema: obj({ ref: refProp }, ["ref"]) },
+  { name: "click", description: "Click an element by ref.", parameters: obj({ ref: refProp }, ["ref"]) },
   {
     name: "fill",
     description: "Type text into an input by ref (clears it first). Never for passwords or codes.",
-    input_schema: obj({ ref: refProp, value: { type: "string" } }, ["ref", "value"]),
+    parameters: obj({ ref: refProp, value: { type: "string" } }, ["ref", "value"]),
   },
   {
     name: "press",
     description: "Press a key combo such as Enter, Tab, Ctrl+A, optionally focusing a ref first.",
-    input_schema: obj({ key: { type: "string" }, ref: refProp }, ["key"]),
+    parameters: obj({ key: { type: "string" }, ref: refProp }, ["key"]),
   },
   {
     name: "navigate",
     description: "Open a URL in the Agent Window.",
-    input_schema: obj({ url: { type: "string" } }, ["url"]),
+    parameters: obj({ url: { type: "string" } }, ["url"]),
   },
   {
     name: "select",
     description: "Choose a <select> option by its value attribute.",
-    input_schema: obj({ ref: refProp, value: { type: "string" } }, ["ref", "value"]),
+    parameters: obj({ ref: refProp, value: { type: "string" } }, ["ref", "value"]),
   },
   {
     name: "wait_for_navigation",
     description: "Wait for the page to load after an action.",
-    input_schema: obj(
+    parameters: obj(
       { wait_until: { type: "string", enum: ["load", "domcontentloaded", "networkidle"] } },
       [],
     ),
@@ -94,27 +92,27 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: "screenshot",
     description: "See the viewport as an image when the snapshot is not enough.",
-    input_schema: obj({}, []),
+    parameters: obj({}, []),
   },
   {
     name: "scroll_to",
     description: "Scroll an element into view.",
-    input_schema: obj({ ref: refProp }, ["ref"]),
+    parameters: obj({ ref: refProp }, ["ref"]),
   },
   {
     name: "step_done",
     description: "Report that a procedure step (1-based) is finished. Call once per step, in order.",
-    input_schema: obj({ step: { type: "integer" } }, ["step"]),
+    parameters: obj({ step: { type: "integer" } }, ["step"]),
   },
   {
     name: "needs_human",
     description: "Stop: a sign-in, 2FA, CAPTCHA, payment or confirm-access prompt needs the person.",
-    input_schema: obj({ reason: { type: "string" } }, ["reason"]),
+    parameters: obj({ reason: { type: "string" } }, ["reason"]),
   },
   {
     name: "finish",
     description: "End the run with a one or two sentence summary of what was done.",
-    input_schema: obj({ summary: { type: "string" } }, ["summary"]),
+    parameters: obj({ summary: { type: "string" } }, ["summary"]),
   },
 ];
 
@@ -161,7 +159,8 @@ export function systemPrompt(task: RunTask, startUrl: string, recalled: string):
 export interface BskOptions {
   bin: string;
   runner: CliRunner;
-  apiKey: string | undefined;
+  /** Null when no LLM key is configured: the executor reports unhealthy and the guard runs scripted. */
+  llm: LlmProvider | null;
   /** Where a command with no start URL begins: the local smoke-test page. */
   defaultStartUrl: string;
   outbox: Outbox;
@@ -171,8 +170,6 @@ export interface BskOptions {
   timeoutMs?: number;
   screenshotEveryMs?: number;
   effort?: "low" | "medium" | "high";
-  /** Injected in tests. */
-  client?: Pick<Anthropic, "messages">;
 }
 
 export class BskExecutor implements Executor {
@@ -184,9 +181,9 @@ export class BskExecutor implements Executor {
     return this.o.runner([this.o.bin, ...args]);
   }
 
-  /** Green when the daemon answers and at least one Chrome is connected, and there is a Claude key. */
+  /** Green when the daemon answers and at least one Chrome is connected, and there is an LLM key. */
   async healthy(): Promise<boolean> {
-    if (!this.o.apiKey && !this.o.client) return false;
+    if (!this.o.llm) return false;
     const res = await this.bsk(["status", "--json"]);
     if (res.code !== 0) return false;
     try {
@@ -234,7 +231,8 @@ export class BskExecutor implements Executor {
     let lastSnapshot = "";
     let summary = "";
     let needsYou: string | undefined;
-    const client = this.o.client ?? new Anthropic({ apiKey: this.o.apiKey });
+    const llm = this.o.llm;
+    if (!llm) throw new Error("no LLM key configured");
     const deadline = started + (this.o.timeoutMs ?? 300_000);
 
     try {
@@ -243,28 +241,22 @@ export class BskExecutor implements Executor {
       if (nav.code !== 0) throw new Error(`bsk navigate failed: ${nav.stderr.trim().slice(0, 200)}`);
       void shoot();
 
-      const messages: Anthropic.MessageParam[] = [
-        { role: "user", content: `Run the procedure now. The page at ${startUrl} is open.` },
-      ];
-      const system = systemPrompt(task, startUrl, recalled);
+      const chat = llm.agent({
+        system: systemPrompt(task, startUrl, recalled),
+        tools: TOOLS,
+        firstMessage: `Run the procedure now. The page at ${startUrl} is open.`,
+        effort: this.o.effort ?? "medium",
+      });
       let finished = false;
       for (let turn = 0; turn < (this.o.maxTurns ?? 60) && !finished; turn++) {
         if (signal?.aborted) throw new Error("aborted");
         if (Date.now() > deadline) throw new Error("the browser run took too long");
-        const res = await client.messages.create({
-          model: BSK_MODEL,
-          max_tokens: 16000,
-          system,
-          tools: TOOLS,
-          output_config: { effort: this.o.effort ?? "medium" },
-          messages,
-        });
-        messages.push({ role: "assistant", content: res.content });
-        if (res.stop_reason === "refusal") throw new Error("the model declined this run");
-        const uses = res.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
+        const reply = await chat.next();
+        if (reply.refused) throw new Error("the model declined this run");
+        const uses = reply.calls;
         if (uses.length === 0) break;
 
-        const results: Anthropic.ToolResultBlockParam[] = [];
+        const results: ToolResult[] = [];
         for (const use of uses) {
           const out = await this.callTool(use, session, lastSnapshot);
           if (out.snapshot !== undefined) lastSnapshot = out.snapshot;
@@ -288,14 +280,9 @@ export class BskExecutor implements Executor {
             summary = out.finish;
             finished = true;
           }
-          results.push({
-            type: "tool_result",
-            tool_use_id: use.id,
-            content: out.content,
-            ...(out.isError ? { is_error: true } : {}),
-          });
+          results.push({ id: use.id, content: out.content, ...(out.isError ? { isError: true } : {}) });
         }
-        messages.push({ role: "user", content: results });
+        chat.submit(results);
       }
       if (!finished && !summary) throw new Error("the agent stopped before finishing");
     } finally {
@@ -324,11 +311,11 @@ export class BskExecutor implements Executor {
 
   /** Validate one tool call, run it through bsk, and shape the result for the model. */
   async callTool(
-    use: Anthropic.ToolUseBlock,
+    use: ToolCall,
     session: string,
     lastSnapshot: string,
   ): Promise<{
-    content: Anthropic.ToolResultBlockParam["content"];
+    content: ToolResult["content"];
     isError?: boolean;
     snapshot?: string;
     action?: TraceCall;
@@ -410,7 +397,7 @@ export class BskExecutor implements Executor {
         const r = await this.bsk(["screenshot", ...s, "--out", out]);
         if (r.code !== 0) return { content: "screenshot failed", isError: true };
         const data = (await readFile(out)).toString("base64");
-        return { content: [{ type: "image", source: { type: "base64", media_type: "image/png", data } }] };
+        return { content: { imagePngBase64: data } };
       }
       case "step_done":
         return { content: "noted", step: Number(input.step) };

@@ -282,7 +282,8 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     await s.card.update(teachLearningCard({ skill: label, frames: frames.length }));
     try {
       if (frames.length < 2) throw new Error("too few frames; record for a few seconds at least");
-      if (!deps.extractor) throw new Error("ANTHROPIC_API_KEY is not set");
+      if (!deps.extractor)
+        throw new Error("no LLM key: add OPENAI_API_KEY (or ANTHROPIC_API_KEY) to Keychain");
       const picked = subsample(frames, MAX_FRAMES);
       await ScreenRecorder.shrink(picked);
       const x = await deps.extractor.extract(picked, s.hint || "a task");
@@ -332,7 +333,7 @@ export function createApp(deps: Deps): { app: App; state: AppState } {
     make: (d: CommandDrafter) => Promise<Draft>,
   ) {
     try {
-      if (!deps.drafter) throw new Error("ANTHROPIC_API_KEY is not set");
+      if (!deps.drafter) throw new Error("no LLM key: add OPENAI_API_KEY (or ANTHROPIC_API_KEY) to Keychain");
       const draft = await make(deps.drafter);
       await client.views.update({ view_id: viewId, view: publishModal(draft, meta) });
     } catch (err) {

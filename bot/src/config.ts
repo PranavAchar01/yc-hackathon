@@ -15,8 +15,14 @@ const EnvSchema = z.object({
   SLACK_APP_ID: z.string().optional(),
   SLACK_CONFIG_TOKEN: z.string().optional(),
   SLACK_CONFIG_REFRESH_TOKEN: z.string().optional(),
-  // Claude (Keychain: ANTHROPIC_API_KEY)
+  // LLM (Keychain: OPENAI_API_KEY and/or ANTHROPIC_API_KEY). OTS_LLM picks; default prefers OpenAI.
+  OTS_LLM: z.enum(["openai", "anthropic", ""]).optional(),
+  OPENAI_API_KEY: z.string().min(1).optional(),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  OTS_OPENAI_MODEL: z.string().default("gpt-5.5"),
+  /** Optional faster model for the per-step bsk agent loop only, e.g. gpt-5.4-mini. */
+  OTS_OPENAI_FAST_MODEL: z.string().optional(),
+  OTS_ANTHROPIC_MODEL: z.string().default("claude-opus-5-5"),
 
   OTS_EXECUTOR: z.enum(["bsk", "qm", "scripted"]).default("scripted"),
   OTS_FORCE_SCRIPTED: flag(false),
@@ -35,7 +41,6 @@ const EnvSchema = z.object({
 
   OTS_GBRAIN: flag(true),
   GBRAIN_BIN: z.string().optional(),
-  OPENAI_API_KEY: z.string().optional(),
 
   OTS_API_HOST: z.string().default("127.0.0.1"),
   OTS_API_PORT: z.coerce.number().int().positive().default(3977),

@@ -5,16 +5,17 @@ import { join } from "node:path";
 import { createApiServer, type HealthLine } from "./api.ts";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
-import { ClaudeDrafter } from "./draft.ts";
+import { LlmDrafter } from "./draft.ts";
 import { BskExecutor } from "./executor/bsk.ts";
 import { QmExecutor } from "./executor/qm.ts";
 import { ScriptedExecutor } from "./executor/scripted.ts";
 import { type CheckedExecutor, ResilientExecutor } from "./executor/select.ts";
-import { ClaudeStepExtractor } from "./extract.ts";
+import { LlmStepExtractor } from "./extract.ts";
 import { MemoryLibrary } from "./library/memory.ts";
 import { PgLibrary } from "./library/pg.ts";
 import { seedIfEmpty } from "./library/seed.ts";
 import type { CommandLibrary } from "./library/types.ts";
+import { AnthropicProvider, chooseProvider, type LlmProvider, OpenAIProvider } from "./llm.ts";
 import { log } from "./log.ts";
 import { defaultRunner, MemorableClient } from "./memorable.ts";
 import { Outbox } from "./mock-site.ts";
@@ -24,6 +25,27 @@ import { CommandSearch, GBrainIndex } from "./search.ts";
 
 const config = loadConfig();
 const runner = defaultRunner();
+
+// ---------------------------------------------------------------- LLM (OpenAI preferred when both keys exist)
+const choice = chooseProvider(config);
+let llm: LlmProvider | null = null;
+let agentLlm: LlmProvider | null = null;
+if (choice.provider === "openai") {
+  const openai = new OpenAIProvider(config.OPENAI_API_KEY, config.OTS_OPENAI_MODEL);
+  llm = openai;
+  void openai.checkModel();
+  if (config.OTS_OPENAI_FAST_MODEL) {
+    const fast = new OpenAIProvider(config.OPENAI_API_KEY, config.OTS_OPENAI_FAST_MODEL);
+    agentLlm = fast;
+    void fast.checkModel();
+  }
+} else if (choice.provider === "anthropic")
+  llm = new AnthropicProvider(config.ANTHROPIC_API_KEY, config.OTS_ANTHROPIC_MODEL);
+log.info(
+  llm
+    ? `LLM: ${llm.name} ${llm.model} (${choice.reason})`
+    : `LLM: none (${choice.reason}); /teach and /new cannot draft, runs use scripted`,
+);
 
 // ---------------------------------------------------------------- library (Postgres, else in-memory)
 async function openLibrary(): Promise<CommandLibrary> {
@@ -108,7 +130,7 @@ function primaryExecutor(): CheckedExecutor | null {
     return new BskExecutor({
       bin: config.BSK_BIN,
       runner,
-      apiKey: config.ANTHROPIC_API_KEY,
+      llm: agentLlm ?? llm,
       defaultStartUrl: config.OTS_MOCK_URL,
       outbox,
       memorable,
@@ -123,9 +145,8 @@ const primary = primaryExecutor();
 // Read per run, so `OTS_FORCE_SCRIPTED=1` can be flipped in the environment of a restarted bot instantly.
 const executor = new ResilientExecutor(primary, scripted, () => config.OTS_FORCE_SCRIPTED);
 
-const extractor = config.ANTHROPIC_API_KEY ? new ClaudeStepExtractor(config.ANTHROPIC_API_KEY) : null;
-const drafter = config.ANTHROPIC_API_KEY ? new ClaudeDrafter(config.ANTHROPIC_API_KEY) : null;
-if (!extractor) log.warn("ANTHROPIC_API_KEY not set: /teach, /new and Save as command cannot draft steps");
+const extractor = llm ? new LlmStepExtractor(llm) : null;
+const drafter = llm ? new LlmDrafter(llm) : null;
 
 // ---------------------------------------------------------------- Slack + local HTTP
 const { app, state } = createApp({
@@ -144,11 +165,7 @@ async function health(): Promise<HealthLine[]> {
   const primaryUp = primary ? await primary.healthy().catch(() => false) : true;
   return [
     { name: "Slack socket", ok: state.started, detail: state.started ? "connected" : "not connected" },
-    {
-      name: "Claude key",
-      ok: !!config.ANTHROPIC_API_KEY,
-      detail: config.ANTHROPIC_API_KEY ? "present" : "missing",
-    },
+    { name: "LLM key", ok: !!llm, detail: llm ? `${llm.name} ${llm.model}` : choice.reason },
     {
       name: "Library",
       ok: library.kind === "postgres",

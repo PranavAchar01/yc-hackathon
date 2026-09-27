@@ -1,9 +1,7 @@
 import { readFile } from "node:fs/promises";
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import type { LlmProvider, Part } from "./llm.ts";
 
-export const EXTRACTION_MODEL = "claude-opus-5-5";
 export const MAX_FRAMES = 16;
 export const MAX_STEPS = 12;
 
@@ -75,46 +73,32 @@ export interface StepExtractor {
   extract(framePaths: string[], hint: string): Promise<Extraction>;
 }
 
-export class ClaudeStepExtractor implements StepExtractor {
-  private readonly client: Anthropic;
-
-  constructor(apiKey: string) {
-    this.client = new Anthropic({ apiKey });
-  }
+/** Frames to steps through whichever LLM provider is configured (vision + structured output). */
+export class LlmStepExtractor implements StepExtractor {
+  constructor(private readonly llm: LlmProvider) {}
 
   async extract(framePaths: string[], hint: string): Promise<Extraction> {
     const frames = subsample(framePaths);
-    const images: Anthropic.ImageBlockParam[] = await Promise.all(
+    const images: Part[] = await Promise.all(
       frames.map(async (p) => ({
         type: "image" as const,
-        source: {
-          type: "base64" as const,
-          media_type: "image/jpeg" as const,
-          data: (await readFile(p)).toString("base64"),
-        },
+        mediaType: "image/jpeg" as const,
+        base64: (await readFile(p)).toString("base64"),
       })),
     );
-    const response = await this.client.messages.parse({
-      model: EXTRACTION_MODEL,
-      max_tokens: 16000,
+    const out = await this.llm.structured({
       system: SYSTEM_PROMPT,
-      output_config: { effort: "high", format: zodOutputFormat(ExtractionSchema) },
-      messages: [
+      schemaName: "procedure",
+      schema: ExtractionSchema,
+      effort: "high",
+      content: [
+        ...images,
         {
-          role: "user",
-          content: [
-            ...images,
-            {
-              type: "text",
-              text: `These ${frames.length} frames show one demonstration of "${hint}". Extract the procedure.`,
-            },
-          ],
+          type: "text",
+          text: `These ${frames.length} frames show one demonstration of "${hint}". Extract the procedure.`,
         },
       ],
     });
-    if (response.stop_reason === "refusal") throw new Error("the model declined to describe these frames");
-    if (response.parsed_output === null)
-      throw new Error(`no structured output (stop: ${response.stop_reason})`);
-    return parseExtraction(response.parsed_output);
+    return parseExtraction(out);
   }
 }
