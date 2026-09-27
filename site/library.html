@@ -4,88 +4,235 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Command Library</title>
-<meta name="description" content="Every command your team has shown once. Search it, run it from Slack.">
+<meta name="description" content="Every command your team has shown once, as a video of the agent doing it. Search it, run it from Slack.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#fbfbfd; --ink:#1d1d1f; --ink2:#6e6e73; --ink3:#86868b; --line:#e5e5ea;
-  --card:#ffffff; --chip:#f2f2f7; --accent:#0071e3; --code:#f4f4f6;
+  --card:#ffffff; --chip:#f2f2f7; --accent:#0071e3; --code:#f4f4f6; --tile:#eceef2; --tile2:#e3e6ec;
+  --shadow:0 1px 2px rgba(0,0,0,.05),0 8px 24px rgba(0,0,0,.06); --shadow-hover:0 2px 6px rgba(0,0,0,.08),0 18px 40px rgba(0,0,0,.12);
+  --veil:rgba(250,250,252,.72);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#000; --ink:#f5f5f7; --ink2:#a1a1a6; --ink3:#86868b; --line:#2c2c2e;
-    --card:#1c1c1e; --chip:#2c2c2e; --accent:#2997ff; --code:#222529;
+    --card:#1c1c1e; --chip:#2c2c2e; --accent:#2997ff; --code:#222529; --tile:#1a1b1f; --tile2:#23252b;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35); --shadow-hover:0 2px 6px rgba(0,0,0,.5),0 18px 40px rgba(0,0,0,.55);
+    --veil:rgba(0,0,0,.6);
   }
 }
 :root[data-theme="dark"]{
   --bg:#000; --ink:#f5f5f7; --ink2:#a1a1a6; --ink3:#86868b; --line:#2c2c2e;
-  --card:#1c1c1e; --chip:#2c2c2e; --accent:#2997ff; --code:#222529;
+  --card:#1c1c1e; --chip:#2c2c2e; --accent:#2997ff; --code:#222529; --tile:#1a1b1f; --tile2:#23252b;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35); --shadow-hover:0 2px 6px rgba(0,0,0,.5),0 18px 40px rgba(0,0,0,.55);
+  --veil:rgba(0,0,0,.6);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:var(--accent);text-decoration:none}
-.wrap{max-width:760px;margin:0 auto;padding:0 16px}
-nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0;font-size:14px;color:var(--ink2)}
-nav b{color:var(--ink);font-weight:700}
-header{padding:56px 0 28px}
-h1{font-size:clamp(38px,7vw,60px);font-weight:800;letter-spacing:-.04em;line-height:1.04}
-.sub{font-size:19px;color:var(--ink2);margin-top:14px;line-height:1.45;font-weight:500}
-.stats{margin-top:18px;font-size:14px;color:var(--ink3)}
-.search{position:sticky;top:0;background:var(--bg);padding:14px 0 16px;z-index:2}
-.search input{width:100%;font:500 17px Inter,system-ui,sans-serif;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 18px;outline:none;transition:border-color .2s,box-shadow .2s}
-.search input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(0,113,227,.12)}
-.search input::placeholder{color:var(--ink3)}
-ul{list-style:none;padding-bottom:80px}
-li{padding:18px 2px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:4px 16px;align-items:baseline}
-.cmd{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:15px;font-weight:600;color:var(--ink)}
-.title{color:var(--ink2);font-size:15px;margin-left:10px}
-.runs{font-size:13px;color:var(--ink3);text-align:right;white-space:nowrap}
-.desc{grid-column:1 / -1;font-size:14.5px;color:var(--ink2);line-height:1.45}
-.meta{grid-column:1 / -1;font-size:12.5px;color:var(--ink3)}
-.empty{padding:48px 0;text-align:center;color:var(--ink3);font-size:15px;line-height:1.6}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+
+/* toolbar: like a Finder window's */
+.bar{position:sticky;top:0;z-index:5;background:var(--veil);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--line)}
+.bar .wrap{display:flex;align-items:center;gap:14px;height:60px}
+.brand{font-weight:700;font-size:15px;color:var(--ink);white-space:nowrap}
+.brand span{color:var(--ink3);font-weight:500}
+.count{font-size:13px;color:var(--ink3);white-space:nowrap;margin-left:auto}
+.field{position:relative;flex:0 1 340px}
+.field svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--ink3)}
+.field input{width:100%;font:500 14px Inter,system-ui,sans-serif;color:var(--ink);background:var(--chip);border:1px solid transparent;border-radius:9px;padding:8px 12px 8px 32px;outline:none;transition:border-color .15s,box-shadow .15s,background .15s}
+.field input:focus{background:var(--card);border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,113,227,.18)}
+.field input::placeholder{color:var(--ink3)}
+
+header{padding:44px 0 26px}
+h1{font-size:clamp(34px,5.5vw,52px);font-weight:800;letter-spacing:-.035em;line-height:1.05}
+.sub{font-size:17px;color:var(--ink2);margin-top:10px;line-height:1.45;font-weight:500;max-width:620px}
+
+/* grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:26px 22px;padding-bottom:90px}
+.card{display:block;text-align:left;border-radius:14px;outline:none}
+.media{position:relative;aspect-ratio:16/10;border-radius:12px;overflow:hidden;background:var(--tile);box-shadow:var(--shadow);transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s}
+.card:hover .media,.card:focus-visible .media{transform:translateY(-2px);box-shadow:var(--shadow-hover)}
+.card:focus-visible .media{outline:3px solid var(--accent);outline-offset:3px}
+.media video,.media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top left;background:var(--tile)}
+.badge{position:absolute;left:10px;bottom:10px;font-size:11.5px;font-weight:600;color:#fff;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:6px;padding:3px 7px;display:flex;align-items:center;gap:5px}
+.badge i{width:0;height:0;border-left:6px solid #fff;border-top:4px solid transparent;border-bottom:4px solid transparent}
+.pending{position:absolute;inset:0;padding:16px 18px;display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(160deg,var(--tile),var(--tile2))}
+.pending ol{list-style:none;display:grid;gap:7px}
+.pending li{font-size:12.5px;color:var(--ink3);display:flex;gap:8px;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pending li::before{content:"";width:10px;height:10px;border-radius:50%;border:1.5px solid var(--line);flex:none}
+.pending small{font-size:11.5px;color:var(--ink3);font-weight:500}
+.info{padding:12px 2px 0}
+.title{font-size:15px;font-weight:650;font-weight:600;line-height:1.3}
+.row{display:flex;align-items:center;gap:8px;margin-top:6px;min-width:0}
+.cmd{font-size:12.5px;font-weight:600;color:var(--ink2);background:var(--chip);border-radius:6px;padding:2px 7px;white-space:nowrap}
+.meta{font-size:12.5px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty{grid-column:1/-1;padding:60px 0;text-align:center;color:var(--ink3);font-size:15px;line-height:1.6}
 .empty code{font-family:ui-monospace,"SF Mono",Menlo,monospace;background:var(--code);padding:2px 6px;border-radius:5px;color:var(--ink2)}
+
+/* Quick Look */
+dialog{border:0;padding:0;background:transparent;max-width:min(980px,calc(100vw - 32px));width:100%;margin:auto;color:var(--ink)}
+dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+dialog[open]{animation:pop .22s cubic-bezier(.2,.8,.2,1)}
+@keyframes pop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+.ql{background:var(--card);border-radius:16px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.35)}
+.ql .stage{position:relative;aspect-ratio:16/10;background:#000}
+.ql .stage video{width:100%;height:100%;object-fit:contain;display:block}
+.ql .stage .pending{position:absolute;inset:0}
+.ql .body{display:grid;grid-template-columns:1fr 1fr;gap:26px;padding:22px 24px 24px}
+.ql h2{font-size:22px;font-weight:700;letter-spacing:-.015em}
+.ql .desc{color:var(--ink2);font-size:14.5px;line-height:1.5;margin-top:6px}
+.ql .by{color:var(--ink3);font-size:13px;margin-top:12px}
+.copy{margin-top:16px;display:inline-flex;align-items:center;gap:10px;background:var(--chip);border-radius:9px;padding:8px 8px 8px 12px}
+.copy .mono{font-size:14px;font-weight:600}
+.copy button{font-size:12.5px;font-weight:600;background:var(--accent);color:#fff;border-radius:6px;padding:5px 10px}
+.ql h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);font-weight:600;margin-bottom:10px}
+.ql ol{padding-left:0;list-style:none;counter-reset:s;display:grid;gap:8px}
+.ql ol li{counter-increment:s;display:flex;gap:10px;font-size:14px;line-height:1.4}
+.ql ol li::before{content:counter(s);flex:none;width:20px;height:20px;border-radius:50%;background:var(--chip);color:var(--ink2);font-size:11.5px;font-weight:700;display:grid;place-items:center}
+.close{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;font-size:18px;line-height:30px;text-align:center;z-index:2}
 footer{color:var(--ink3);font-size:13px;text-align:center;padding:0 0 48px}
-@media (max-width:560px){ .title{display:block;margin:4px 0 0} li{grid-template-columns:1fr} .runs{text-align:left} }
+footer code{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+@media (max-width:640px){
+  .brand span,.count{display:none}
+  .field{flex:1}
+  .ql .body{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
+<div class="bar"><div class="wrap">
+  <a class="brand" href="/">Over the Shoulder <span>/ Library</span></a>
+  <label class="field"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4" stroke-linecap="round"/></svg>
+    <input id="q" type="search" placeholder="Search" autocomplete="off" aria-label="Search commands"></label>
+  <span class="count" id="count"></span>
+</div></div>
+
 <div class="wrap">
-  <nav><a href="/"><b>Over the Shoulder</b></a><span>Library</span></nav>
   <header>
-    <h1>The library.</h1>
-    <p class="sub">Every command your team has shown once. Find one, then run it from Slack.</p>
-    <p class="stats" id="stats">&nbsp;</p>
+    <h1>Shown once. Runs forever.</h1>
+    <p class="sub">Every command your team has taught, as a video of the agent doing it. Hover to watch, click to look closer, then run it from Slack.</p>
   </header>
-  <div class="search"><input id="q" type="search" placeholder="Try &ldquo;send launch emails&rdquo;" autocomplete="off" aria-label="Search commands"></div>
-  <ul id="list" aria-live="polite"></ul>
-  <footer>Commands shared with everyone in Northwind, a fictional company. Teach a new one with <code>/teach</code>.</footer>
+  <main class="grid" id="grid" aria-live="polite"></main>
+  <footer>Commands shared with everyone in Northwind, a fictional company. Videos are real runs. Teach a new one with <code>/teach</code>.</footer>
 </div>
+
+<dialog id="ql" aria-label="Command details"><div class="ql" id="qlbody"></div></dialog>
+
 <script>
 (() => {
-  const list = document.getElementById("list");
-  const stats = document.getElementById("stats");
+  const grid = document.getElementById("grid");
+  const count = document.getElementById("count");
   const input = document.getElementById("q");
+  const dlg = document.getElementById("ql");
+  const qlbody = document.getElementById("qlbody");
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const fmt = (n) => Number(n).toLocaleString("en-US");
-  const invocation = (c) => (c.registered === "slash" ? `/${c.name}` : `/do ${c.name}`);
+  const cmdOf = (c) => (c.registered === "slash" ? `/${c.name}` : `/do ${c.name}`);
+  const stepsOf = (c) => (Array.isArray(c.steps) ? c.steps : []);
+  const hover = matchMedia("(hover: hover)").matches;
+  let items = [];
   let seq = 0;
 
+  function pending(c) {
+    return `<div class="pending"><ol>${stepsOf(c).slice(0, 4).map((s) => `<li>${esc(s)}</li>`).join("")}</ol><small>Records on its first run</small></div>`;
+  }
+
+  function media(c) {
+    if (!c.video_url) return pending(c);
+    return `<video muted loop playsinline preload="none" poster="${esc(c.poster_url)}" src="${esc(c.video_url)}"></video><span class="badge"><i></i>Real run</span>`;
+  }
+
   function render(data) {
-    if (data.total) stats.textContent = `${fmt(data.total.n)} commands · ${fmt(data.total.runs)} runs`;
-    if (!data.commands.length) {
-      list.innerHTML = `<li class="empty" style="display:block">Nothing matches &ldquo;${esc(data.query)}&rdquo; yet.<br>Show it once in Slack with <code>/teach</code>.</li>`;
+    items = data.commands;
+    if (data.total) count.textContent = `${fmt(data.total.n)} commands`;
+    if (!items.length) {
+      grid.innerHTML = `<div class="empty">Nothing matches &ldquo;${esc(data.query)}&rdquo; yet.<br>Show it once in Slack with <code>/teach</code>.</div>`;
       return;
     }
-    list.innerHTML = data.commands.map((c) => `
-      <li>
-        <div><span class="cmd">${esc(invocation(c))}</span><span class="title">${esc(c.title)}</span></div>
-        <div class="runs">${fmt(c.uses)} ${c.uses === 1 ? "run" : "runs"}</div>
-        <div class="desc">${esc(c.description)}</div>
-        <div class="meta">Shown by ${esc(c.author_name)} · ${c.steps} steps</div>
-      </li>`).join("");
+    grid.innerHTML = items.map((c, i) => `
+      <button class="card" data-i="${i}" aria-label="${esc(c.title)}, ${esc(cmdOf(c))}">
+        <div class="media">${media(c)}</div>
+        <div class="info">
+          <div class="title">${esc(c.title)}</div>
+          <div class="row"><span class="cmd mono">${esc(cmdOf(c))}</span><span class="meta">${esc(c.author_name)} · ${fmt(c.uses)} ${c.uses === 1 ? "run" : "runs"}</span></div>
+        </div>
+      </button>`).join("");
+    wireVideos();
   }
+
+  // Desktop: play on hover, like Photos. Touch: play whatever is on screen.
+  let io;
+  function wireVideos() {
+    io?.disconnect();
+    const vids = [...grid.querySelectorAll("video")];
+    if (hover) {
+      grid.querySelectorAll(".card").forEach((card) => {
+        const v = card.querySelector("video");
+        if (!v) return;
+        card.addEventListener("mouseenter", () => v.play().catch(() => {}));
+        card.addEventListener("mouseleave", () => { v.pause(); });
+        card.addEventListener("focus", () => v.play().catch(() => {}));
+        card.addEventListener("blur", () => v.pause());
+      });
+    } else {
+      io = new IntersectionObserver((es) => es.forEach((e) => (e.isIntersecting ? e.target.play().catch(() => {}) : e.target.pause())), { threshold: 0.6 });
+      vids.forEach((v) => io.observe(v));
+    }
+  }
+
+  function open(i) {
+    const c = items[i];
+    if (!c) return;
+    const cmd = cmdOf(c);
+    qlbody.innerHTML = `
+      <div class="stage"><button class="close" aria-label="Close">×</button>${c.video_url ? `<video controls autoplay muted loop playsinline poster="${esc(c.poster_url)}" src="${esc(c.video_url)}"></video>` : pending(c)}</div>
+      <div class="body">
+        <div>
+          <h2>${esc(c.title)}</h2>
+          <p class="desc">${esc(c.description)}</p>
+          <div class="copy"><span class="mono">${esc(cmd)}</span><button id="copy">Copy</button></div>
+          <p class="by">Shown by ${esc(c.author_name)} · ${fmt(c.uses)} ${c.uses === 1 ? "run" : "runs"}${c.video_at ? ` · recorded ${new Date(c.video_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}</p>
+        </div>
+        <div><h3>What it does</h3><ol>${stepsOf(c).map((s) => `<li>${esc(s)}</li>`).join("")}</ol></div>
+      </div>`;
+    qlbody.querySelector(".close").onclick = () => dlg.close();
+    qlbody.querySelector("#copy").onclick = async (e) => {
+      try { await navigator.clipboard.writeText(cmd); e.target.textContent = "Copied"; } catch { e.target.textContent = cmd; }
+    };
+    dlg.dataset.i = i;
+    dlg.showModal();
+  }
+
+  grid.addEventListener("click", (e) => { const card = e.target.closest(".card"); if (card) open(Number(card.dataset.i)); });
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener("close", () => { qlbody.querySelector("video")?.pause(); grid.querySelector(`.card[data-i="${dlg.dataset.i}"]`)?.focus(); });
+
+  // Keyboard, Finder style: arrows move between tiles, Space opens Quick Look, / jumps to search.
+  document.addEventListener("keydown", (e) => {
+    if (dlg.open) {
+      if (e.key === " " && e.target.tagName !== "BUTTON") { e.preventDefault(); dlg.close(); }
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        const n = Number(dlg.dataset.i) + (e.key === "ArrowRight" ? 1 : -1);
+        if (items[n]) { dlg.close(); open(n); }
+      }
+      return;
+    }
+    if (e.key === "/" && document.activeElement !== input) { e.preventDefault(); input.focus(); return; }
+    const card = document.activeElement?.closest?.(".card");
+    if (!card) return;
+    if (e.key === " ") { e.preventDefault(); open(Number(card.dataset.i)); return; }
+    const cards = [...grid.querySelectorAll(".card")];
+    const i = cards.indexOf(card);
+    const cols = Math.max(1, Math.round(grid.clientWidth / (card.offsetWidth + 22)));
+    const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[e.key];
+    if (step && cards[i + step]) { e.preventDefault(); cards[i + step].focus(); }
+  });
 
   async function load(q) {
     const id = ++seq;
@@ -96,10 +243,9 @@ footer{color:var(--ink3);font-size:13px;text-align:center;padding:0 0 48px}
       if (!r.ok) throw new Error(data.error || "unavailable");
       render(data);
     } catch {
-      if (id === seq) list.innerHTML = `<li class="empty" style="display:block">The library is taking a break. Try again in a moment.</li>`;
+      if (id === seq) grid.innerHTML = `<div class="empty">The library is taking a break. Try again in a moment.</div>`;
     }
   }
-
   let t;
   input.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => load(input.value.trim()), 180); });
   load("");

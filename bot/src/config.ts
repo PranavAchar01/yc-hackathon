@@ -21,7 +21,7 @@ const EnvSchema = z.object({
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   OTS_OPENAI_MODEL: z.string().default("gpt-5.5"),
   /** Optional faster model for the per-step bsk agent loop only, e.g. gpt-5.4-mini. */
-  OTS_OPENAI_FAST_MODEL: z.string().optional(),
+  OTS_OPENAI_FAST_MODEL: z.string().default("gpt-5.4-mini"),
   OTS_ANTHROPIC_MODEL: z.string().default("claude-opus-5-5"),
 
   OTS_EXECUTOR: z.enum(["bsk", "qm", "scripted"]).default("scripted"),
@@ -32,7 +32,7 @@ const EnvSchema = z.object({
   OTS_QM_SIGNING_SECRET: z.string().optional(),
 
   BSK_BIN: z.string().default(`${process.env.HOME ?? ""}/.local/bin/bsk`),
-  BSK_TIMEOUT_MS: z.coerce.number().int().positive().default(300_000),
+  BSK_TIMEOUT_MS: z.coerce.number().int().positive().default(420_000),
   BSK_EFFORT: z.enum(["low", "medium", "high"]).default("medium"),
 
   OTS_DATABASE_URL: z.string().default("postgres://ots:ots@127.0.0.1:5544/ots"),

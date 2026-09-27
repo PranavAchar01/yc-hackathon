@@ -224,7 +224,7 @@ export class BskExecutor implements Executor {
       shooting = false;
       if (r?.code === 0) await onEvent({ kind: "screenshot", path: out });
     };
-    const ticker = setInterval(() => void shoot(), this.o.screenshotEveryMs ?? 1_000);
+    const ticker = setInterval(() => void shoot(), this.o.screenshotEveryMs ?? 2_000);
 
     const actions: TraceCall[] = [];
     const done = new Set<number>();
